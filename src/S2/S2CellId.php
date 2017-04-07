@@ -458,25 +458,28 @@ class S2CellId {
      * would be at most 3 bytes (9 bytes hex vs. 6 bytes base-64).
      *
      * @return string the encoded cell id
-     *
-     * public String toToken() {
-     * if (id == 0) {
-     * return "X";
-     * }
-     * String hex = Long.toHexString(id).toLowerCase(Locale.ENGLISH);
-     * StringBuilder sb = new StringBuilder(16);
-     * for (int i = hex.length(); i < 16; i++) {
-     * sb.append('0');
-     * }
-     * sb.append(hex);
-     * for (int len = 16; len > 0; len--) {
-     * if (sb.charAt(len - 1) != '0') {
-     * return sb.substring(0, len);
-     * }
-     * }
-     * throw new RuntimeException("Shouldn't make it here");
-     * }
-     * /**
+     */
+    public function toToken() {
+      if ($this->id == 0) {
+        return "X";
+      }
+      $hex = strtolower(dechex($this->id));
+      $sb = '';
+      for ($i = strlen($hex); $i < 16; $i++) {
+        $sb .= '0';
+      }
+      $sb .= $hex;
+      for ($len = 16; $len > 0; $len--) {
+        if ($sb[$len - 1] != '0') {
+            return substr($sb, 0, $len);
+        }
+      }
+      throw new \RuntimeException("Shouldn't make it here");
+     }
+
+
+
+     /**
      * Returns true if (current * 10) + digit is a number too large to be
      * represented by an unsigned long.  This is useful for detecting overflow
      * while parsing a string representation of a number.
@@ -604,47 +607,44 @@ class S2CellId {
      * neighbors.
      * Requires: nbr_level >= this->level(). Note that for cells adjacent to a
      * face vertex, the same neighbor may be appended more than once.
-     *#/
-     * public void getAllNeighbors(int nbrLevel, List<S2CellId> output) {
-     * MutableInteger i = new MutableInteger(0);
-     * MutableInteger j = new MutableInteger(0);
-     * int face = toFaceIJOrientation(i, j, null);
-     * // Find the coordinates of the lower left-hand leaf cell. We need to
-     * // normalize (i,j) to a known position within the cell because nbr_level
-     * // may be larger than this cell's level.
-     * int size = 1 << (MAX_LEVEL - level());
-     * i.setValue(i.intValue() & -size);
-     * j.setValue(j.intValue() & -size);
-     * int nbrSize = 1 << (MAX_LEVEL - nbrLevel);
-     * // assert (nbrSize <= size);
-     * // We compute the N-S, E-W, and diagonal neighbors in one pass.
-     * // The loop test is at the end of the loop to avoid 32-bit overflow.
-     * for (int k = -nbrSize;; k += nbrSize) {
-     * boolean sameFace;
-     * if (k < 0) {
-     * sameFace = (j.intValue() + k >= 0);
-     * } else if (k >= size) {
-     * sameFace = (j.intValue() + k < MAX_SIZE);
-     * } else {
-     * sameFace = true;
-     * // North and South neighbors.
-     * output.add(fromFaceIJSame(face, i.intValue() + k,
-     * j.intValue() - nbrSize, j.intValue() - size >= 0).parent(nbrLevel));
-     * output.add(fromFaceIJSame(face, i.intValue() + k, j.intValue() + size,
-     * j.intValue() + size < MAX_SIZE).parent(nbrLevel));
-     * }
-     * // East, West, and Diagonal neighbors.
-     * output.add(fromFaceIJSame(face, i.intValue() - nbrSize,
-     * j.intValue() + k, sameFace && i.intValue() - size >= 0).parent(
-     * nbrLevel));
-     * output.add(fromFaceIJSame(face, i.intValue() + size, j.intValue() + k,
-     * sameFace && i.intValue() + size < MAX_SIZE).parent(nbrLevel));
-     * if (k >= size) {
-     * break;
-     * }
-     * }
-     * }
      */
+     public function getAllNeighbors($nbrLevel, &$output) {
+         $i = 0;
+         $j = 0;
+         $null = null;
+         $face = $this->toFaceIJOrientation($i, $j, $null);
+         // Find the coordinates of the lower left-hand leaf cell. We need to
+         // normalize (i,j) to a known position within the cell because nbr_level
+         // may be larger than this cell's level.
+         $size = 1 << (self::MAX_LEVEL - $this->level());
+        $i = $i & -$size;
+        $j = $j & -$size;
+
+         $nbrSize = 1 << (self::MAX_LEVEL - $nbrLevel);
+         // assert (nbrSize <= size);
+         // We compute the N-S, E-W, and diagonal neighbors in one pass.
+         // The loop test is at the end of the loop to avoid 32-bit overflow.
+         for ($k = -$nbrSize;; $k += $nbrSize) {
+             $sameFace = false;
+             if ($k < 0) {
+                $sameFace = ($j + $k >= 0);
+             } else if ($k >= $size) {
+                $sameFace = ($j + $k < self::MAX_SIZE);
+             } else {
+                $sameFace = true;
+                 // North and South neighbors.
+                 $output[] = $this->fromFaceIJSame($face, $i + $k, $j - $nbrSize, $j - $size >= 0)->parent($nbrLevel);
+                 $output[] = $this->fromFaceIJSame($face, $i + $k, $j + $size, $j + $size < self::MAX_SIZE)->parent($nbrLevel);
+             }
+             // East, West, and Diagonal neighbors.
+             $output[] = $this->fromFaceIJSame($face, $i - $nbrSize, $j + $k, $sameFace && $i - $size >= 0)->parent($nbrLevel);
+             $output[] = $this->fromFaceIJSame($face, $i + $size, $j + $k, $sameFace && $i + $size < self::MAX_SIZE)->parent($nbrLevel);
+             if ($k >= $size) {
+                break;
+             }
+         }
+     }
+
 
      // ///////////////////////////////////////////////////////////////////
      // Low-level methods.
@@ -894,13 +894,15 @@ class S2CellId {
 
     /*
 
-  /**
-   * Returns true if x1 < x2, when both values are treated as unsigned.
-   *#/
-  public static boolean unsignedLongLessThan(long x1, long x2) {
-    return (x1 + Long.MIN_VALUE) < (x2 + Long.MIN_VALUE);
-  }
+    /**
+    * Returns true if x1 < x2, when both values are treated as unsigned.
     */
+    public static function unsignedLongLessThan($x1, $x2)
+    {
+        return ($x1 & ~PHP_INT_MAX) < ($x2 & ~PHP_INT_MAX) // compare first bit
+            || (($x1 & ~PHP_INT_MAX) == ($x2 & ~PHP_INT_MAX)
+                && ($x1 & PHP_INT_MAX) < ($x2 & PHP_INT_MAX));
+    }
 
     /**
      * Returns true if x1 > x2, when both values are treated as unsigned.
@@ -911,7 +913,9 @@ class S2CellId {
      */
     public static function unsignedLongGreaterThan($x1, $x2)
     {
-        return ($x1 & ~PHP_INT_MAX) > ($x2 & ~PHP_INT_MAX);
+        return ($x1 & ~PHP_INT_MAX) > ($x2 & ~PHP_INT_MAX) // compare first bit
+            || (($x1 & ~PHP_INT_MAX) == ($x2 & ~PHP_INT_MAX)
+                && ($x1 & PHP_INT_MAX) > ($x2 & PHP_INT_MAX));
     }
 
     /*

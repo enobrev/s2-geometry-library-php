@@ -4,9 +4,9 @@ namespace S2;
 
 class S2LatLngRect implements S2Region
 {
-    /** @var \R1Interval */
+    /** @var R1Interval */
     private $lat;
-    /** @var \S1Interval */
+    /** @var S1Interval */
     private $lng;
 
     /**
@@ -148,13 +148,13 @@ class S2LatLngRect implements S2Region
         return S1Angle::sradians($this->lng->hi());
     }
 
-//  public R1Interval lat() {
-//    return lat;
-//  }
+  public function lat() {
+    return $this->lat;
+  }
 
-//  public S1Interval lng() {
-//    return lng;
-//  }
+  public function lng() {
+    return $this->lng;
+  }
 
     public function lo()
     {
@@ -332,9 +332,9 @@ class S2LatLngRect implements S2Region
         if ($ll instanceof S2LatLng) {
             return ($this->lat->contains($ll->lat()->radians()) && $this->lng->contains($ll->lng()->radians()));
         } else if ($ll instanceof S2LatLngRect) {
-            return lat . contains($ll . lat) && lng . contains($ll . lng);
+            return $this->lat->contains($ll->lat()) && $this->lng->contains($ll->lng());
         } else if ($ll instanceof S2Cell) {
-            return $this->contains($cell->getRectBound());
+            return $this->contains($ll->getRectBound());
         } else if ($ll instanceof S2Point) {
             return contains(new S2LatLng(p));
         }

@@ -153,30 +153,30 @@ class S1Interval
      * // full.
      * }
      *
-     * /** Return true if the interval (which is closed) contains the point 'p'. *#/
-     * public boolean contains(double p) {
-     * // Works for empty, full, and singleton intervals.
-     * // assert (Math.abs(p) <= S2.M_PI);
-     * if (p == -S2.M_PI) {
-     * p = S2.M_PI;
-     * }
-     * return fastContains(p);
-     * }
-     *
-     * /**
+     * /** Return true if the interval (which is closed) contains the point 'p'. */
+     public function contains($p) {
+         // Works for empty, full, and singleton intervals.
+         // assert (Math.abs(p) <= S2.M_PI);
+         if ($p == -S2::M_PI) {
+            $p = S2::M_PI;
+         }
+         return $this->fastContains($p);
+     }
+
+     /**
      * Return true if the interval (which is closed) contains the point 'p'. Skips
      * the normalization of 'p' from -Pi to Pi.
      *
-     *#/
-     * public boolean fastContains(double p) {
-     * if (isInverted()) {
-     * return (p >= lo() || p <= hi()) && !isEmpty();
-     * } else {
-     * return p >= lo() && p <= hi();
-     * }
-     * }
-     *
-     * /** Return true if the interior of the interval contains the point 'p'. *#/
+     */
+     public function fastContains($p) {
+         if ($this->isInverted()) {
+            return ($p >= $this->lo() || $p <= $this->hi()) && !$this->isEmpty();
+         } else {
+            return $p >= $this->lo() && $p <= $this->hi();
+         }
+     }
+
+     /** Return true if the interior of the interval contains the point 'p'. *#/
      * public boolean interiorContains(double p) {
      * // Works for empty, full, and singleton intervals.
      * // assert (Math.abs(p) <= S2.M_PI);

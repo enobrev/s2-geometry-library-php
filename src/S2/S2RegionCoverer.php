@@ -134,9 +134,9 @@ class S2RegionCoverer
         return $this->maxLevel;
     }
 
-//  public int maxCells() {
-//    return maxCells;
-//  }
+  public function maxCells() {
+    return $this->maxCells;
+  }
 
     /**
      * If specified, then only cells where (level - min_level) is a multiple of
@@ -185,9 +185,9 @@ class S2RegionCoverer
      * worst case: 215518 14.41 9.72 5.26 3.91 2.75 1.92 1.20 1.02
      * </pre>
      */
-//  public void setMaxCells(int maxCells) {
-//    this.maxCells = maxCells;
-//  }
+  public function setMaxCells($maxCells) {
+    $this->maxCells = $maxCells;
+  }
 
     /**
      * Computes a list of cell ids that covers the given region and satisfies the
