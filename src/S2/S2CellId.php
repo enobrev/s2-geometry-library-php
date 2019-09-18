@@ -309,13 +309,18 @@ class S2CellId {
         return $other->greaterOrEquals($this->rangeMin()) && $other->lessOrEquals($this->rangeMax());
     }
 
-    /** Return true if the given cell intersects this one. *#/
-     * public boolean intersects(S2CellId other) {
-     * // assert (isValid() && other.isValid());
-     * return other.rangeMin().lessOrEquals(rangeMax())
-     * && other.rangeMax().greaterOrEquals(rangeMin());
-     * }
+    /**
+     * Return true if the given cell intersects this one.
+     *
+     * @param S2CellId $other
+     * @return bool
      */
+    public function intersects(S2CellId $other): bool
+    {
+        // assert (isValid() && other.isValid());
+        return $other->rangeMin()->lessOrEquals($this->rangeMax()) &&
+            $other->rangeMax()->greaterOrEquals($this->rangeMin());
+    }
 
     /**
      * Return the cell at the previous level or at the given level (which must be
