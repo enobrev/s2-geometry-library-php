@@ -154,16 +154,16 @@ class S2Cell implements S2Region
      * subcells; it is not necessarily the centroid of the cell in (u,v)-space or
      * (x,y,z)-space. The point returned by GetCenterRaw is not necessarily unit
      * length.
-     *#/
-     * public S2Point getCenter() {
-     * return S2Point.normalize(getCenterRaw());
-     * }
-     *
-     * public S2Point getCenterRaw() {
-     * return cellId.toPointRaw();
-     * }
-     *
-     * /**
+     */
+    public function getCenter() {
+        return S2Point::normalize($this->getCenterRaw());
+    }
+
+    public function getCenterRaw() {
+        return $this->cellId->toPointRaw();
+    }
+
+     /**
      * Return the center of the cell in (u,v) coordinates (see {@code
      * S2Projections}). Note that the center of the cell is defined as the point
      * at which it is recursively subdivided into four children; in general, it is
