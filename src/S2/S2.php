@@ -138,15 +138,15 @@ class S2 {
      * return new S2Point(0, 1, 0);
      * }
      *
-     * /**
+	/**
      * Return true if the given point is approximately unit length (this is mainly
      * useful for assertions).
-     *#/
-     * public static boolean isUnitLength(S2Point p) {
-     * return Math.abs(p.norm2() - 1) <= 1e-15;
-     * }
-     *
-     * /**
+     */
+    public static function isUnitLength(S2Point $p) {
+    	return abs($p->norm2() - 1) <= 1e-15;
+    }
+
+    /**
      * Return true if edge AB crosses CD at a point that is interior to both
      * edges. Properties:
      *
