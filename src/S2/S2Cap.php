@@ -34,10 +34,10 @@ class S2Cap implements S2Region
      * distance along the cap axis from the cap center. 'axis' should be a
      * unit-length vector.
      */
-//  public static S2Cap fromAxisHeight(S2Point axis, double height) {
-    // assert (S2.isUnitLength(axis));
-//    return new S2Cap(axis, height);
-//  }
+    public static function fromAxisHeight(S2Point $axis, $height) {
+		// assert (S2.isUnitLength(axis));
+		return new S2Cap($axis, $height);
+	}
 
     /**
      * Create a cap given its axis and the cap opening angle, i.e. maximum angle
