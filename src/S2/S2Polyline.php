@@ -18,69 +18,72 @@ class S2Polyline implements S2Region
 {
 //private static final Logger log = Logger.getLogger(S2Polyline.class.getCanonicalName());
 
-//private final int numVertices;
+	/** @var int */
     private $numVertices;
-//private final S2Point[] vertices;
+
+    /** @var S2Point[] */
     private $vertices;
 
     /**
      * Create a polyline that connects the given vertices. Empty polylines are
      * allowed. Adjacent vertices should not be identical or antipodal. All
      * vertices should be unit length.
-     *#/
-     * public S2Polyline(List
-     * <S2Point> vertices) {
-     * // assert isValid(vertices);
-     * this.numVertices = vertices.size();
-     * this.vertices = vertices.toArray(new S2Point[numVertices]);
-     * }
-     *
-     * /**
-     * Copy constructor.
-     *
-     * TODO(dbeaumont): Now that S2Polyline is immutable, remove this.
-     *#/
-     * public S2Polyline(S2Polyline src) {
-     * this.numVertices = src.numVertices();
-     * this.vertices = src.vertices.clone();
-     * }
-     *
-     * /**
+     */
+	public function __construct($polyline) {
+		if($polyline instanceof S2Polyline) {
+			$this->numVertices = $polyline->numVertices();
+			$this->vertices = $polyline->vertices;
+			#this.vertices = vertices.toArray(new S2Point[numVertices]);
+		} elseif(is_array($polyline)) {
+			if($this->isValid($polyline)) {
+				return false;
+			}
+			$this->numVertices = count($polyline);
+			$this->vertices = $polyline;
+		} else {
+			$this->numVertices = 0;
+			$this->vertices = array();
+		}
+	}
+
+	/**
      * Return true if the given vertices form a valid polyline.
-     *#/
-     * public boolean isValid(List
-     * <S2Point> vertices) {
-     * // All vertices must be unit length.
-     * int n = vertices.size();
-     * for (int i = 0; i < n; ++i) {
-     * if (!S2.isUnitLength(vertices.get(i))) {
-     * log.info("Vertex " + i + " is not unit length");
-     * return false;
-     * }
-     * }
-     *
-     * // Adjacent vertices must not be identical or antipodal.
-     * for (int i = 1; i < n; ++i) {
-     * if (vertices.get(i - 1).equals(vertices.get(i))
-     * || vertices.get(i - 1).equals(S2Point.neg(vertices.get(i)))) {
-     * log.info("Vertices " + (i - 1) + " and " + i + " are identical or antipodal");
-     * return false;
-     * }
-     * }
-     *
-     * return true;
-     * }
-     *
-     * public int numVertices() {
-     * return numVertices;
-     * }
-     *
-     * public S2Point vertex(int k) {
-     * // assert (k >= 0 && k < numVertices);
-     * return vertices[k];
-     * }
-     *
-     * /**
+	 *
+	 * @param S2Point[] $vertices
+	 *
+	 * @return boolean
+     */
+    public function isValid($vertices) {
+		// All vertices must be unit length.
+		$n = count($vertices);
+		for($i = 0; $i < $n; $i++) {
+			if(!S2::isUnitLength($vertices[$i])) {
+				#log.info("Vertex " + i + " is not unit length");
+				return false;
+			}
+		}
+
+		// Adjacent vertices must not be identical or antipodal.
+		for($i = 1; $i < $n; $i++) {
+			if($vertices[$i - 1]->equals($vertices[$i]) || $vertices[$i - 1]->equals(S2Point::neg($vertices[$i]))) {
+				#log.info("Vertices " + (i - 1) + " and " + i + " are identical or antipodal");
+				return false;
+			}
+		}
+
+		return true;
+    }
+
+    public function numVertices() {
+    	return $this->numVertices;
+    }
+
+    public function vertex(int $k) {
+		// assert (k >= 0 && k < numVertices);
+		return $this->vertices[$k];
+    }
+
+	/**
      * Return the angle corresponding to the total arclength of the polyline on a
      * unit sphere.
      *#/
