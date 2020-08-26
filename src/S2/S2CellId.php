@@ -530,24 +530,20 @@ class S2CellId {
      * Return the four cells that are adjacent across the cell's four edges.
      * Neighbors are returned in the order defined by S2Cell::GetEdge. All
      * neighbors are guaranteed to be distinct.
-     *#/
-     * public void getEdgeNeighbors(S2CellId neighbors[]) {
-     * MutableInteger i = new MutableInteger(0);
-     * MutableInteger j = new MutableInteger(0);
-     * int level = this.level();
-     * int size = 1 << (MAX_LEVEL - level);
-     * int face = toFaceIJOrientation(i, j, null);
-     * // Edges 0, 1, 2, 3 are in the S, E, N, W directions.
-     * neighbors[0] = fromFaceIJSame(face, i.intValue(), j.intValue() - size,
-     * j.intValue() - size >= 0).parent(level);
-     * neighbors[1] = fromFaceIJSame(face, i.intValue() + size, j.intValue(),
-     * i.intValue() + size < MAX_SIZE).parent(level);
-     * neighbors[2] = fromFaceIJSame(face, i.intValue(), j.intValue() + size,
-     * j.intValue() + size < MAX_SIZE).parent(level);
-     * neighbors[3] = fromFaceIJSame(face, i.intValue() - size, j.intValue(),
-     * i.intValue() - size >= 0).parent(level);
-     * }
-    */
+     */
+     public function getEdgeNeighbors(&$output) {
+         $i = 0;
+         $j = 0;
+         $level = $this->level();
+         $size = 1 << (self::MAX_LEVEL - $level);
+         $null = null;
+         $face = $this->toFaceIJOrientation($i, $j, $null);
+         // Edges 0, 1, 2, 3 are in the S, E, N, W directions.
+         $output[] = self::fromFaceIJSame($face, $i, $j - $size, $j - $size >= 0)->parent($level);
+         $output[] = self::fromFaceIJSame($face, $i + $size, $j, $i + $size < self::MAX_SIZE)->parent($level);
+         $output[] = self::fromFaceIJSame($face, $i, $j + $size, $j + $size < self::MAX_SIZE)->parent($level);
+         $output[] = self::fromFaceIJSame($face, $i - $size, $j, $i - $size >= 0)->parent($level);
+     }
 
     /**
      * Return the neighbors of closest vertex to this cell at the given level, by
