@@ -46,9 +46,9 @@ class S2LatLngRect implements S2Region
     /**
      * The full allowable range of longitudes.
      */
-//  public static S1Interval fullLng() {
-//    return S1Interval.full();
-//  }
+    public static function fullLng(): S1Interval {
+        return S1Interval::full();
+    }
 
     /**
      * Construct a rectangle from a center point (in lat-lng space) and size in
@@ -336,7 +336,7 @@ class S2LatLngRect implements S2Region
         } else if ($ll instanceof S2Cell) {
             return $this->contains($ll->getRectBound());
         } else if ($ll instanceof S2Point) {
-            return contains(new S2LatLng(p));
+            return $this->contains(new S2LatLng($ll));
         }
     }
 
@@ -496,9 +496,9 @@ class S2LatLngRect implements S2Region
      * Return the smallest rectangle containing the union of this rectangle and
      * the given rectangle.
      */
-//  public S2LatLngRect union(S2LatLngRect other) {
-//    return new S2LatLngRect(lat.union(other.lat), lng.union(other.lng));
-//  }
+    public function union(S2LatLngRect $other): S2LatLngRect {
+        return new S2LatLngRect($this->lat->union($other->lat()), $this->lng->union($other->lng()));
+    }
 
     /**
      * Return the smallest rectangle containing the intersection of this rectangle

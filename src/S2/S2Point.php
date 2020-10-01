@@ -90,7 +90,7 @@ class S2Point
     /** Return the index of the largest component fabs */
     public function largestAbsComponent()
     {
-        $temp = $this->fabs($this);
+        $temp = self::fabs($this);
         if ($temp->x > $temp->y) {
             if ($temp->x > $temp->z) {
                 return 0;

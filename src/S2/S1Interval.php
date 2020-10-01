@@ -332,47 +332,47 @@ class S1Interval
     /**
      * Return the smallest interval that contains this interval and the given
      * interval "y".
-     *#/
-     * public S1Interval union(final S1Interval y) {
-     * // The y.is_full() case is handled correctly in all cases by the code
-     * // below, but can follow three separate code paths depending on whether
-     * // this interval is inverted, is non-inverted but contains Pi, or neither.
-     *
-     * if (y.isEmpty()) {
-     * return this;
-     * }
-     * if (fastContains(y.lo())) {
-     * if (fastContains(y.hi())) {
-     * // Either this interval contains y, or the union of the two
-     * // intervals is the Full() interval.
-     * if (contains(y)) {
-     * return this; // is_full() code path
-     * }
-     * return full();
-     * }
-     * return new S1Interval(lo(), y.hi(), true);
-     * }
-     * if (fastContains(y.hi())) {
-     * return new S1Interval(y.lo(), hi(), true);
-     * }
-     *
-     * // This interval contains neither endpoint of y. This means that either y
-     * // contains all of this interval, or the two intervals are disjoint.
-     * if (isEmpty() || y.fastContains(lo())) {
-     * return y;
-     * }
-     *
-     * // Check which pair of endpoints are closer together.
-     * double dlo = positiveDistance(y.hi(), lo());
-     * double dhi = positiveDistance(hi(), y.lo());
-     * if (dlo < dhi) {
-     * return new S1Interval(y.lo(), hi(), true);
-     * } else {
-     * return new S1Interval(lo(), y.hi(), true);
-     * }
-     * }
-     *
-     * /**
+     */
+     public function union(S1Interval $y): S1Interval {
+         // The y.is_full() case is handled correctly in all cases by the code
+         // below, but can follow three separate code paths depending on whether
+         // this interval is inverted, is non-inverted but contains Pi, or neither.
+         
+         if ($y->isEmpty()) {
+            return $this;
+         }
+         if ($this->fastContains($y->lo())) {
+             if ($this->fastContains($y->hi())) {
+             // Either this interval contains $y, or the union of the two
+             // intervals is the Full() interval.
+                 if ($this->contains($y)) {
+                    return $this; // is_full() code path
+                 }
+                 return self::full();
+             }
+             return new S1Interval($this->lo(), $y->hi(), true);
+         }
+         if ($this->fastContains($y->hi())) {
+            return new S1Interval($y->lo(), $this->hi(), true);
+         }
+         
+         // This interval contains neither endpoint of $y-> This means that either $y
+         // contains all of this interval, or the two intervals are disjoint.
+         if ($this->isEmpty() || $y->fastContains($this->lo())) {
+             return $y;
+         }
+         
+         // Check which pair of endpoints are closer together.
+         $dlo = self::positiveDistance($y->hi(), $this->lo());
+         $dhi = self::positiveDistance($this->hi(), $y->lo());
+         if ($dlo < $dhi) {
+            return new S1Interval($y->lo(), $this->hi(), true);
+         } else {
+            return new S1Interval($this->lo(), $y->hi(), true);
+         }
+     }
+     
+     /**
      * Return the smallest interval that contains the intersection of this
      * interval with "y". Note that the region of intersection may consist of two
      * disjoint intervals.

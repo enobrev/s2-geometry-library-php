@@ -77,11 +77,10 @@ class S2CellId {
     /**
      * Returns an invalid cell id guaranteed to be larger than any valid cell id.
      * Useful for creating indexes.
-     *#/
-     * public static S2CellId sentinel() {
-     * return new S2CellId(MAX_UNSIGNED); // -1
-     * }
-     *
+     */
+     public static function sentinel(): S2CellId {
+        return new S2CellId(self::MAX_UNSIGNED); // -1
+     }
 
     /**
      * Return a cell given its face (range 0..5), 61-bit Hilbert curve position
@@ -191,11 +190,11 @@ class S2CellId {
         return $this->id;
     }
 
-    /** Return true if id() represents a valid cell. *#/
-     * public boolean isValid() {
-     * return face() < NUM_FACES && ((lowestOnBit() & (0x1555555555555555L)) != 0);
-     * }
-     * /** Which cube face this cell belongs to, in the range 0..5. */
+    /** Return true if id() represents a valid cell. */
+     public function isValid(): bool {
+        return $this->face() < self::NUM_FACES && (($this->lowestOnBit() & (0x1555555555555555)) != 0);
+     }
+     /** Which cube face this cell belongs to, in the range 0..5. */
     public function face()
     {
         return $this->id >> self::POS_BITS & PHP_INT_MAX >> (self::POS_BITS - 1);
@@ -415,12 +414,14 @@ class S2CellId {
      * }
      * return new S2CellId(p.id + WRAP_OFFSET);
      * }
-     * public static S2CellId begin(int level) {
-     * return fromFacePosLevel(0, 0, 0).childBegin(level);
-     * }
-     * public static S2CellId end(int level) {
-     * return fromFacePosLevel(5, 0, 0).childEnd(level);
-     * }
+     */
+     public static function begin(int $level): S2CellId {
+        return self::fromFacePosLevel(0, 0, 0)->childBegin($level);
+     }
+
+     public static function end(int $level): S2CellId {
+        return self::fromFacePosLevel(5, 0, 0)->childEnd($level);
+     }
      
     /**
      * Decodes the cell id from a compact text string suitable for display or
@@ -914,33 +915,28 @@ class S2CellId {
                 && ($x1 & PHP_INT_MAX) > ($x2 & PHP_INT_MAX));
     }
 
-    /*
-  public boolean lessThan(S2CellId x) {
-    return unsignedLongLessThan(id, x.id);
-  }
+    public function lessThan(S2CellId $x): bool {
+        return self::unsignedLongLessThan($this->id, $x->id);
+    }
 
-  public boolean greaterThan(S2CellId x) {
-    return unsignedLongGreaterThan(id, x.id);
-  }
-   */
+    public function greaterThan(S2CellId $x) {
+        return self::unsignedLongGreaterThan($this->id, $x->id);
+    }
 
     public function lessOrEquals(S2CellId $x)
     {
-        return $this->unsignedLongLessThan($this->id, $x->id) || $this->id == $x->id;
+        return self::unsignedLongLessThan($this->id, $x->id) || $this->id == $x->id;
     }
 
     public function greaterOrEquals(S2CellId $x)
     {
-        return $this->unsignedLongGreaterThan($this->id, $x->id) || $this->id == $x->id;
+        return self::unsignedLongGreaterThan($this->id, $x->id) || $this->id == $x->id;
     }
 
-    /*
-  @Override
-  public int hashCode() {
-    return (int) ((id >>> 32) + id);
-  }
+    public function hashCode(): int {
+        return (int) (JavaMathHelper::uRShift($this->id, 32) + $this->id);
+    }
 
-*/
     public function __toString()
     {
         return sprintf("(face=%d, pos=%16x, level=%d)", $this->face(), $this->pos(), $this->level());
@@ -984,12 +980,11 @@ class S2CellId {
             }
         }
     }
-    /*
-  public int compareTo(S2CellId that) {
-    return unsignedLongLessThan(this.id, that.id) ? -1 :
-        unsignedLongGreaterThan(this.id, that.id) ? 1 : 0;
+
+  public function compareTo(S2CellId $that): int {
+    return  self::unsignedLongLessThan($this->id, $that->id) ? -1 :
+            self::unsignedLongGreaterThan($this->id, $that->id) ? 1 : 0;
   }
-*/
 }
 
 S2CellId::$LOOKUP_POS = array_pad(array(), 1 << (2 * S2CellId::LOOKUP_BITS + 2), 0);

@@ -2,48 +2,75 @@
 
 namespace S2;
 
+use ArrayIterator;
+
 class S2CellUnion
 {
+
     /** The CellIds that form the Union
      * @var S2CellId[]
      */
     private $cellIds = array();
 
-    /*
-  public void initFromCellIds(ArrayList<S2CellId> cellIds) {
-    initRawCellIds(cellIds);
-    normalize();
-  }
+    /**
+     * helper method for all the calls from the java version to this.cellids->add()
+     * @param S2CellId $id
+     */
+    protected function add(S2CellId $id): void {
+        $this->cellIds[] = $id;
+    }
 
-  /**
-   * Populates a cell union with the given S2CellIds or 64-bit cells ids, and
-   * then calls Normalize(). The InitSwap() version takes ownership of the
-   * vector data without copying and clears the given vector. These methods may
-   * be called multiple times.
-   *#/
-  public void initFromIds(ArrayList<Long> cellIds) {
-    initRawIds(cellIds);
-    normalize();
-  }
-*/
-    public function initSwap($cellIds)
-    {
+    protected function addAll(S2CellUnion $union): void {
+        foreach($union->iterator() as $id) {
+            $this->add($id);
+        }
+    }
+
+    /**
+     * @param S2CellId[] $cellIds
+     */
+    public function initFromCellIds(array $cellIds):void {
+        $this->initRawCellIds($cellIds);
+        $this->normalize();
+    }
+
+    /**
+    * Populates a cell union with the given S2CellIds or 64-bit cells ids, and
+    * then calls Normalize(). The InitSwap() version takes ownership of the
+    * vector data without copying and clears the given vector. These methods may
+    * be called multiple times.
+    *
+    * @param int[]
+    */
+    public function initFromIds(array $cellIds): void {
+          $this->initRawIds($cellIds);
+          $this->normalize();
+    }
+
+    /**
+     * @param S2CellId[] $cellIds
+     */
+    public function initSwap(array $cellIds): void {
         $this->initRawSwap($cellIds);
         $this->normalize();
     }
 
-    /*
-  public void initRawCellIds(ArrayList<S2CellId> cellIds) {
-    this.cellIds = cellIds;
-  }
-
-  public void initRawIds(ArrayList<Long> cellIds) {
-    int size = cellIds.size();
-    this.cellIds = new ArrayList<S2CellId>(size);
-    for (Long id : cellIds) {
-      this.cellIds.add(new S2CellId(id));
+    /**
+     * @param S2CellId[] $cellIds
+     */
+    public function initRawCellIds(array $cellIds): void {
+        $this->cellIds = $cellIds;
     }
-  }
+
+    /**
+     * @param int[] $cellIds
+     */
+    public function initRawIds(array $cellIds): void {
+        $this->cellIds = [];
+        foreach ($cellIds as $id) {
+            $this->add(new S2CellId($id));
+        }
+    }
 
   /**
    * Like Init(), but does not call Normalize(). The cell union *must* be
@@ -51,9 +78,10 @@ class S2CellUnion
    * responsibility to make sure that the input is normalized. This method is
    * useful when converting cell unions to another representation and back.
    * These methods may be called multiple times.
+   *
+   * @param S2CellId[]
    */
-    public function initRawSwap($cellIds)
-    {
+    public function initRawSwap(array $cellIds): void {
         $this->cellIds = $cellIds;
 //    cellIds.clear();
     }
@@ -63,23 +91,27 @@ class S2CellUnion
         return count($this->cellIds);
     }
 
-    /** Convenience methods for accessing the individual cell ids. *#/
-     * public S2CellId cellId(int i) {
-     * return cellIds.get(i);
-     * }
-     *
-     * /** Enable iteration over the union's cells. *#/
+    /** Convenience methods for accessing the individual cell ids. */
+     public function cellId(int $i): S2CellId {
+        return $this->cellIds[$i];
+     }
+
+    /** Enable iteration over the union's cells.
      * @Override
-     * public Iterator<S2CellId> iterator() {
-     * return cellIds.iterator();
-     * }
-     *
-     * /** Direct access to the underlying vector for iteration . *#/
-     * public ArrayList<S2CellId> cellIds() {
-     * return cellIds;
-     * }
-     *
-     * /**
+     */
+     public function iterator(): ArrayIterator {
+        return new ArrayIterator($this->cellIds);
+     }
+
+     /** Direct access to the underlying vector for iteration .
+       * @return S2CellId[]
+      */
+
+     public function cellIds(): array {
+        return $this->cellIds;
+     }
+
+    /**
      * Replaces "output" with an expanded version of the cell union where any
      * cells whose level is less than "min_level" or where (level - min_level) is
      * not a multiple of "level_mod" are replaced by their children, until either
@@ -91,10 +123,10 @@ class S2CellUnion
      * converted back to the original list of cell ids that satisfies the desired
      * constraints.
      */
-    public function denormalize($minLevel, $levelMod, &$output)
+    public function denormalize(int $minLevel, int $levelMod, S2CellUnion &$output)
     {
-        // assert (minLevel >= 0 && minLevel <= S2CellId.MAX_LEVEL);
-        // assert (levelMod >= 1 && levelMod <= 3);
+        assert ($minLevel >= 0 && $minLevel <= S2CellId::MAX_LEVEL);
+        assert ($levelMod >= 1 && $levelMod <= 3);
 
         $output = array();
         /** @var $id S2CellId */
@@ -107,15 +139,42 @@ class S2CellUnion
                 $newLevel += (S2CellId::MAX_LEVEL - ($newLevel - $minLevel)) % $levelMod;
                 $newLevel = min(S2CellId::MAX_LEVEL, $newLevel);
             }
-            if ($newLevel == $level) {
+            if ($newLevel === $level) {
                 $output[] = $id;
             } else {
                 $end = $id->childEnd($newLevel);
-                for ($id = $id->childBegin($newLevel); !$id->equals($end); $id = $id->next()) {
+                for ($nid = $id->childBegin($newLevel); !$nid->equals($end); $nid = $nid->next()) {
                     $output[] = $id;
                 }
             }
         }
+    }
+
+    /**
+     *
+     * @param array $collection
+     * @param       $target
+     *
+     * @return int|null
+     * @see https://github.com/openjdk/jdk13u/blob/master/src/java.base/share/classes/java/util/Collections.java
+     */
+    private function binarySearch(array $collection, $target): int {
+        $low = 0;
+        $high = count($collection) - 1;
+
+        while ($low <= $high) {
+            $mid = JavaMathHelper::uRShift($low + $high, 1);
+            $midVal = $collection[$mid];
+            $cmp = $midVal->compareTo($target);
+
+            if ($cmp < 0)
+                $low = $mid + 1;
+            else if ($cmp > 0)
+                $high = $mid - 1;
+            else
+                return $mid; // key found
+        }
+        return -($low + 1);  // key not found
     }
 
     /**
@@ -129,200 +188,258 @@ class S2CellUnion
      * }
      *
      *
-     * /**
+    /**
      * Return true if the cell union contains the given cell id. Containment is
      * defined with respect to regions, e.g. a cell contains its 4 children. This
      * is a fast operation (logarithmic in the size of the cell union).
-     *#/
-     * public boolean contains(S2CellId id) {
-     * // This function requires that Normalize has been called first.
-     * //
-     * // This is an exact test. Each cell occupies a linear span of the S2
-     * // space-filling curve, and the cell id is simply the position at the center
-     * // of this span. The cell union ids are sorted in increasing order along
-     * // the space-filling curve. So we simply find the pair of cell ids that
-     * // surround the given cell id (using binary search). There is containment
-     * // if and only if one of these two cell ids contains this cell.
-     *
-     * int pos = Collections.binarySearch(cellIds, id);
-     * if (pos < 0) {
-     * pos = -pos - 1;
-     * }
-     * if (pos < cellIds.size() && cellIds.get(pos).rangeMin().lessOrEquals(id)) {
-     * return true;
-     * }
-     * return pos != 0 && cellIds.get(pos - 1).rangeMax().greaterOrEquals(id);
-     * }
-     *
-     * /**
+     * @param S2CellId|S2CellUnion|S2Cell|S2Point $target
+     */
+     public function contains($target): bool {
+         if ($target instanceof S2CellId) {
+             return $this->containsId($target);
+         }
+
+         if ($target instanceof S2CellUnion) {
+             return $this->containsUnion($target);
+         }
+
+         if ($target instanceof S2Cell) {
+             return $this->containsCell($target);
+         }
+
+         if ($target instanceof S2Point) {
+             return $this->containsPoint($target);
+         }
+
+         return false;
+     }
+
+     private function containsId(S2CellId $id): bool {
+        // This function requires that Normalize has been called first.
+        //
+        // This is an exact test. Each cell occupies a linear span of the S2
+        // space-filling curve, and the cell id is simply the position at the center
+        // of this span. The cell union ids are sorted in increasing order along
+        // the space-filling curve. So we simply find the pair of cell ids that
+        // surround the given cell id (using binary search). There is containment
+        // if and only if one of these two cell ids contains this cell.
+        $pos = $this->binarySearch($this->cellIds, $id);
+
+        $sId = $id->id();
+
+        if ($pos < 0) {
+            return false; // TODO this may be incorrect but I can't seem to figure out why this method keeps going if the binary search fails
+            $pos = -$pos - 1;
+        }
+
+        if ($pos < count($this->cellIds) && isset($this->cellIds[$pos]) && $this->cellIds[$pos]->rangeMin()->lessOrEquals($id)) {
+            return true;
+        }
+
+        return $pos !== 0 && isset($this->cellIds[$pos - 1]) && $this->cellIds[$pos - 1]->rangeMax()->greaterOrEquals($id);
+     }
+
+     /**
      * Return true if the cell union intersects the given cell id. This is a fast
      * operation (logarithmic in the size of the cell union).
-     *#/
-     * public boolean intersects(S2CellId id) {
-     * // This function requires that Normalize has been called first.
-     * // This is an exact test; see the comments for Contains() above.
-     * int pos = Collections.binarySearch(cellIds, id);
+     * @param S2CellId|S2CellUnion $target
+     */
+     public function intersects($target): bool {
+         if ($target instanceof S2CellId) {
+             return $this->intersectsId($target);
+         }
+
+         if ($target instanceof S2CellUnion) {
+             return $this->intersectsUnion($target);
+         }
+
+         return false;
+     }
+
+     private function intersectsId(S2CellId $id): bool {
+        // This function requires that Normalize has been called first.
+        // This is an exact test; see the comments for Contains() above.
+        $pos = $this->binarySearch($this->cellIds, $id);
+
+        if ($pos < 0) {
+            $pos = -$pos - 1;
+        }
+
+        if ($pos < count($this->cellIds) && isset($this->cellIds[$pos]) && $this->cellIds[$pos]->rangeMin()->lessOrEquals($id->rangeMax())) {
+            return true;
+        }
+
+        return $pos != 0 && isset($this->cellIds[$pos - 1]) && $this->cellIds[$pos - 1]->rangeMax()->greaterOrEquals($id->rangeMin());
+     }
+
+    /**
+     * @param S2CellUnion $that
      *
-     * if (pos < 0) {
-     * pos = -pos - 1;
-     * }
-     *
-     *
-     * if (pos < cellIds.size() && cellIds.get(pos).rangeMin().lessOrEquals(id.rangeMax())) {
-     * return true;
-     * }
-     * return pos != 0 && cellIds.get(pos - 1).rangeMax().greaterOrEquals(id.rangeMin());
-     * }
-     *
-     * public boolean contains(S2CellUnion that) {
-     * // TODO(kirilll?): A divide-and-conquer or alternating-skip-search approach
-     * // may be significantly faster in both the average and worst case.
-     * for (S2CellId id : that) {
-     * if (!this.contains(id)) {
-     * return false;
-     * }
-     * }
-     * return true;
-     * }
-     *
-     * /** This is a fast operation (logarithmic in the size of the cell union). *#/
-     * @Override
-     * public boolean contains(S2Cell cell) {
-     * return contains(cell.id());
-     * }
-     *
-     * /**
+     * @see contains Alias to `contains`, since php doesn't allow method overloading
+     * @return bool
+     */
+    private function containsUnion (S2CellUnion $that): bool {
+        // Imported from more recent version of S2CellUnion
+        $result = new S2CellUnion();
+        $result->getIntersection($this, $that);
+        return $result->cellIds === $that->cellIds;
+    }
+
+    /** This is a fast operation (logarithmic in the size of the cell union). *
+    * @Override
+    * @see contains  Alias to `contains`, since php doesn't allow method overloading
+    */
+    private function containsCell(S2Cell $cell): bool {
+        return $this->containsId($cell->id());
+    }
+
+     /**
      * Return true if this cell union contain/intersects the given other cell
      * union.
-     *#/
-     * public boolean intersects(S2CellUnion union) {
-     * // TODO(kirilll?): A divide-and-conquer or alternating-skip-search approach
-     * // may be significantly faster in both the average and worst case.
-     * for (S2CellId id : union) {
-     * if (intersects(id)) {
-     * return true;
-     * }
-     * }
-     * return false;
-     * }
-     *
-     * public void getUnion(S2CellUnion x, S2CellUnion y) {
-     * // assert (x != this && y != this);
-     * cellIds.clear();
-     * cellIds.ensureCapacity(x.size() + y.size());
-     * cellIds.addAll(x.cellIds);
-     * cellIds.addAll(y.cellIds);
-     * normalize();
-     * }
-     *
-     * /**
+     */
+     private function intersectsUnion(S2CellUnion $union): bool {
+        // TODO(kirilll?): A divide-and-conquer or alternating-skip-search approach
+        // may be significantly faster in both the average and worst case.
+        foreach($union->iterator() as $id) {
+            if ($this->intersectsId($id)) {
+                return true;
+            }
+        }
+        return false;
+     }
+
+     public function getUnion(S2CellUnion $x, S2CellUnion $y): void {
+        assert ($x !== $this && $y !== $this);
+
+        $this->addAll($x);
+        $this->addAll($y);
+        $this->normalize();
+     }
+
+    /**
+     * @param S2CellUnion           $x
+     * @param S2CellUnion|S2CellId  $y
+     */
+     public function getIntersection(S2CellUnion $x, $y): void {
+         if ($y instanceof S2CellId) {
+             $this->getIntersectionId($x, $y);
+         }
+
+         if ($y instanceof S2CellUnion) {
+             $this->getIntersectionUnion($x, $y);
+         }
+     }
+
+     /**
      * Specialized version of GetIntersection() that gets the intersection of a
      * cell union with the given cell id. This can be useful for "splitting" a
      * cell union into chunks.
-     *#/
-     * public void getIntersection(S2CellUnion x, S2CellId id) {
-     * // assert (x != this);
-     * cellIds.clear();
-     * if (x.contains(id)) {
-     * cellIds.add(id);
-     * } else {
-     * int pos = Collections.binarySearch(x.cellIds, id.rangeMin());
-     *
-     * if (pos < 0) {
-     * pos = -pos - 1;
-     * }
-     *
-     * S2CellId idmax = id.rangeMax();
-     * int size = x.cellIds.size();
-     * while (pos < size && x.cellIds.get(pos).lessOrEquals(idmax)) {
-     * cellIds.add(x.cellIds.get(pos++));
-     * }
-     * }
-     * }
-     *
-     * /**
+     */
+     private function getIntersectionId(S2CellUnion $x, S2CellId $id): void {
+        assert ($x !== $this);
+
+        if ($x->contains($id)) {
+            $this->add($id);
+        } else {
+            $pos = $this->binarySearch($x->cellIds(), $id->rangeMin());
+
+            if ($pos < 0) {
+                $pos = -$pos - 1;
+            }
+
+            $idmax = $id->rangeMax();
+            $size  = count($x->cellIds());
+            while ($pos < $size && $x->cellIds[$pos]->lessOrEquals($idmax)) {
+                $this->add($x->cellIds[$pos++]);
+            }
+        }
+     }
+
+     /**
      * Initialize this cell union to the union or intersection of the two given
      * cell unions. Requires: x != this and y != this.
-     *#/
-     * public void getIntersection(S2CellUnion x, S2CellUnion y) {
-     * // assert (x != this && y != this);
-     *
-     * // This is a fairly efficient calculation that uses binary search to skip
-     * // over sections of both input vectors. It takes constant time if all the
-     * // cells of "x" come before or after all the cells of "y" in S2CellId order.
-     *
-     * cellIds.clear();
-     *
-     * int i = 0;
-     * int j = 0;
-     *
-     * while (i < x.cellIds.size() && j < y.cellIds.size()) {
-     * S2CellId imin = x.cellId(i).rangeMin();
-     * S2CellId jmin = y.cellId(j).rangeMin();
-     * if (imin.greaterThan(jmin)) {
-     * // Either j->contains(*i) or the two cells are disjoint.
-     * if (x.cellId(i).lessOrEquals(y.cellId(j).rangeMax())) {
-     * cellIds.add(x.cellId(i++));
-     * } else {
-     * // Advance "j" to the first cell possibly contained by *i.
-     * j = indexedBinarySearch(y.cellIds, imin, j + 1);
-     * // The previous cell *(j-1) may now contain *i.
-     * if (x.cellId(i).lessOrEquals(y.cellId(j - 1).rangeMax())) {
-     * --j;
-     * }
-     * }
-     * } else if (jmin.greaterThan(imin)) {
-     * // Identical to the code above with "i" and "j" reversed.
-     * if (y.cellId(j).lessOrEquals(x.cellId(i).rangeMax())) {
-     * cellIds.add(y.cellId(j++));
-     * } else {
-     * i = indexedBinarySearch(x.cellIds, jmin, i + 1);
-     * if (y.cellId(j).lessOrEquals(x.cellId(i - 1).rangeMax())) {
-     * --i;
-     * }
-     * }
-     * } else {
-     * // "i" and "j" have the same range_min(), so one contains the other.
-     * if (x.cellId(i).lessThan(y.cellId(j))) {
-     * cellIds.add(x.cellId(i++));
-     * } else {
-     * cellIds.add(y.cellId(j++));
-     * }
-     * }
-     * }
-     * // The output is generated in sorted order, and there should not be any
-     * // cells that can be merged (provided that both inputs were normalized).
-     * // assert (!normalize());
-     * }
-     *
-     * /**
+     */
+     private function getIntersectionUnion(S2CellUnion $x, S2CellUnion $y): void {
+         assert ($x !== $this && $y !== $this);
+
+         // This is a fairly efficient calculation that uses binary search to skip
+         // over sections of both input vectors. It takes constant time if all the
+         // cells of "x" come before or after all the cells of "y" in S2CellId order.
+
+         $i = 0;
+         $j = 0;
+
+         while ($i < count($x->cellIds()) && $j < count($y->cellIds())) {
+             $imin = $x->cellId($i)->rangeMin();
+             $jmin = $y->cellId($j)->rangeMin();
+
+             if ($imin->greaterThan($jmin)) {
+                 // Either $j->contains(*$i) or the two cells are disjoint->
+                 if ($x->cellId($i)->lessOrEquals($y->cellId($j)->rangeMax())) {
+                     $this->add($x->cellId($i++));
+                 } else {
+                     // Advance "$j" to the first cell possibly contained by *$i->
+                     $j = $this->indexedBinarySearch($y->cellIds, $imin, $j + 1);
+                     // The previous cell *($j-1) may now contain *$i->
+                     if ($x->cellId($i)->lessOrEquals($y->cellId($j - 1)->rangeMax())) {
+                         --$j;
+                     }
+                 }
+             } else if ($jmin->greaterThan($imin)) {
+                 // Identical to the code above with "$i" and "$j" reversed->
+                 if ($y->cellId($j)->lessOrEquals($x->cellId($i)->rangeMax())) {
+                    $this->add($y->cellId($j++));
+                 } else {
+                     $i = $this->indexedBinarySearch($x->cellIds, $jmin, $i + 1);
+                     if ($y->cellId($j)->lessOrEquals($x->cellId($i - 1)->rangeMax())) {
+                         --$i;
+                     }
+                 }
+             } else {
+                 // "$i" and "$j" have the same range_min(), so one contains the other->
+                 if ($x->cellId($i)->lessThan($y->cellId($j))) {
+                     $this->add($x->cellId($i++));
+                 } else {
+                     $this->add($y->cellId($j++));
+                 }
+             }
+         }
+         // The output is generated in sorted order, and there should not be any
+         // cells that can be merged (provided that both inputs were normalized).
+         // assert (!normalize());
+     }
+
+     /**
      * Just as normal binary search, except that it allows specifying the starting
      * value for the lower bound.
-     *
-     * @return The position of the searched element in the list (if found), or the
+     * @param S2CellId[] $l
+     * @param S2CellId $key
+     * @param int $low
+      *
+     * @return int The position of the searched element in the list (if found), or the
      *         position where the element could be inserted without violating the
      *         order.
-     *#/
-     * private int indexedBinarySearch(List<S2CellId> l, S2CellId key, int low) {
-     * int high = l.size() - 1;
-     *
-     * while (low <= high) {
-     * int mid = (low + high) >> 1;
-     * S2CellId midVal = l.get(mid);
-     * int cmp = midVal.compareTo(key);
-     *
-     * if (cmp < 0) {
-     * low = mid + 1;
-     * } else if (cmp > 0) {
-     * high = mid - 1;
-     * } else {
-     * return mid; // key found
-     * }
-     * }
-     * return low; // key not found
-     * }
-     *
-     * /**
+     */
+     private function indexedBinarySearch(array $l, S2CellId $key, int $low): int {
+         $high = count($l) - 1;
+
+         while ($low <= $high) {
+             $mid = ($low + $high) >> 1;
+             $midVal = $l[$mid];
+             $cmp = $midVal->compareTo($key);
+
+             if ($cmp < 0) {
+                 $low = $mid + 1;
+             } else if ($cmp > 0) {
+                 $high = $mid - 1;
+             } else {
+                 return $mid; // key found
+             }
+         }
+         return $low; // key not found
+     }
+
+     /**
      * Expands the cell union such that it contains all cells of the given level
      * that are adjacent to any cell of the original union. Two cells are defined
      * as adjacent if their boundaries have any points in common, i.e. most cells
@@ -332,28 +449,43 @@ class S2CellUnion
      * if level == 20 and the input has a cell at level 10, there will be on the
      * order of 4000 adjacent cells in the output. For most applications the
      * Expand(min_fraction, min_distance) method below is easier to use.
-     *#/
-     * public void expand(int level) {
-     * ArrayList<S2CellId> output = new ArrayList<S2CellId>();
-     * long levelLsb = S2CellId.lowestOnBitForLevel(level);
-     * int i = size() - 1;
-     * do {
-     * S2CellId id = cellId(i);
-     * if (id.lowestOnBit() < levelLsb) {
-     * id = id.parent(level);
-     * // Optimization: skip over any cells contained by this one. This is
-     * // especially important when very small regions are being expanded.
-     * while (i > 0 && id.contains(cellId(i - 1))) {
-     * --i;
-     * }
-     * }
-     * output.add(id);
-     * id.getAllNeighbors(level, output);
-     * } while (--i >= 0);
-     * initSwap(output);
-     * }
-     *
-     * /**
+      *
+      * @param int|S1Angle $a
+      * @param int $b
+     */
+
+     public function expand($a, $b = null): void {
+         if ($a instanceof S1Angle) {
+             $this->expandToAngle($a, $b);
+             return;
+         }
+
+         $this->expandToLevel($a);
+     }
+
+
+     private function expandToLevel(int $level): void {
+         /** @var S2CellId[] $output */
+         $output = [];
+         $levelLsb = S2CellId::lowestOnBitForLevel($level);
+         $i = $this->size() - 1;
+         do {
+             $id = $this->cellId($i);
+             if ($id->lowestOnBit() < $levelLsb) {
+                 $id = $id->parent($level);
+                 // Optimization: skip over any cells contained by this one. This is
+                 // especially important when very small regions are being expanded.
+                 while ($i > 0 && $id->contains($this->cellId($i - 1))) {
+                     --$i;
+                 }
+             }
+             $output[] = $id;
+             $id->getAllNeighbors($level, $output);
+         } while (--$i >= 0);
+         $this->initSwap($output);
+     }
+
+     /**
      * Expand the cell union such that it contains all points whose distance to
      * the cell union is at most minRadius, but do not use cells that are more
      * than maxLevelDiff levels higher than the largest cell in the input. The
@@ -365,101 +497,101 @@ class S2CellUnion
      * approximately 1/16 the width of its largest cell. Note that in the worst
      * case, the number of cells in the output can be up to 4 * (1 + 2 **
      * maxLevelDiff) times larger than the number of cells in the input.
-     *#/
-     * public void expand(S1Angle minRadius, int maxLevelDiff) {
-     * int minLevel = S2CellId.MAX_LEVEL;
-     * for (S2CellId id : this) {
-     * minLevel = Math.min(minLevel, id.level());
-     * }
-     * // Find the maximum level such that all cells are at least "min_radius"
-     * // wide.
-     * int radiusLevel = S2Projections.MIN_WIDTH.getMaxLevel(minRadius.radians());
-     * if (radiusLevel == 0 && minRadius.radians() > S2Projections.MIN_WIDTH.getValue(0)) {
-     * // The requested expansion is greater than the width of a face cell.
-     * // The easiest way to handle this is to expand twice.
-     * expand(0);
-     * }
-     * expand(Math.min(minLevel + maxLevelDiff, radiusLevel));
-     * }
-     *
-     * @Override
-     * public S2Region clone() {
-     * S2CellUnion copy = new S2CellUnion();
-     * copy.initRawCellIds(Lists.newArrayList(cellIds));
-     * return copy;
-     * }
-     *
-     * @Override
-     * public S2Cap getCapBound() {
-     * // Compute the approximate centroid of the region. This won't produce the
-     * // bounding cap of minimal area, but it should be close enough.
-     * if (cellIds.isEmpty()) {
-     * return S2Cap.empty();
-     * }
-     * S2Point centroid = new S2Point(0, 0, 0);
-     * for (S2CellId id : this) {
-     * double area = S2Cell.averageArea(id.level());
-     * centroid = S2Point.add(centroid, S2Point.mul(id.toPoint(), area));
-     * }
-     * if (centroid.equals(new S2Point(0, 0, 0))) {
-     * centroid = new S2Point(1, 0, 0);
-     * } else {
-     * centroid = S2Point.normalize(centroid);
-     * }
-     *
-     * // Use the centroid as the cap axis, and expand the cap angle so that it
-     * // contains the bounding caps of all the individual cells. Note that it is
-     * // *not* sufficient to just bound all the cell vertices because the bounding
-     * // cap may be concave (i.e. cover more than one hemisphere).
-     * S2Cap cap = S2Cap.fromAxisHeight(centroid, 0);
-     * for (S2CellId id : this) {
-     * cap = cap.addCap(new S2Cell(id).getCapBound());
-     * }
-     * return cap;
-     * }
-     *
-     * @Override
-     * public S2LatLngRect getRectBound() {
-     * S2LatLngRect bound = S2LatLngRect.empty();
-     * for (S2CellId id : this) {
-     * bound = bound.union(new S2Cell(id).getRectBound());
-     * }
-     * return bound;
-     * }
-     *
-     *
-     * /** This is a fast operation (logarithmic in the size of the cell union). *#/
-     * @Override
-     * public boolean mayIntersect(S2Cell cell) {
-     * return intersects(cell.id());
-     * }
-     *
-     * /**
+     */
+     public function expandToAngle(S1Angle $minRadius, int $maxLevelDiff): void {
+         $minLevel = S2CellId::MAX_LEVEL;
+
+         foreach ($this->iterator() as $id) {
+            $minLevel = min($minLevel, $id->level());
+         }
+
+         // Find the maximum level such that all cells are at least "min_radius"
+         // wide.
+         $radiusLevel = S2Projections::$PROJ->minWidth->getMaxLevel($minRadius->radians());
+         if ($radiusLevel === 0 && $minRadius->radians() > S2Projections::$PROJ->minWidth->getValue(0)) {
+            // The requested expansion is greater than the width of a face cell.
+            // The easiest way to handle this is to expand twice.
+            $this->expand(0);
+         }
+
+         $this->expand(min($minLevel + $maxLevelDiff, $radiusLevel));
+     }
+
+    public function clone(): S2CellUnion {
+        $copy = new S2CellUnion();
+        $copy->initRawCellIds($this->cellIds);
+        return $copy;
+    }
+
+      public function getCapBound(): S2Cap {
+        // Compute the approximate centroid of the region. This won't produce the
+        // bounding cap of minimal area, but it should be close enough.
+        if (count($this->cellIds) === 0) {
+           return S2Cap::sempty();
+        }
+        $centroid = new S2Point(0, 0, 0);
+        foreach($this as $id) {
+            $area = S2Cell::averageArea($id->level());
+            $centroid = S2Point::add($centroid, S2Point::mul($id->toPoint(), $area));
+        }
+        if ($centroid->equals(new S2Point(0, 0, 0))) {
+            $centroid = new S2Point(1, 0, 0);
+        } else {
+            $centroid = S2Point::normalize($centroid);
+        }
+
+        // Use the centroid as the cap axis, and expand the cap angle so that it
+        // contains the bounding caps of all the individual cells. Note that it is
+        // *not* sufficient to just bound all the cell vertices because the bounding
+        // cap may be concave (i.e. cover more than one hemisphere).
+        $cap = S2Cap::fromAxisHeight($centroid, 0);
+        foreach($this as $id) {
+            $cap = $cap->addCap((new S2Cell($id))->getCapBound());
+        }
+        return $cap;
+     }
+
+
+     public function getRectBound(): S2LatLngRect {
+        $bound = S2LatLngRect::emptya();
+        foreach($this->cellIds as $id) {
+            $bound = $bound->union((new S2Cell($id))->getRectBound());
+        }
+
+        return $bound;
+     }
+
+     /** This is a fast operation (logarithmic in the size of the cell union). */
+
+     public function mayIntersect(S2Cell $cell): bool {
+        return $this->intersects($cell->id());
+     }
+
+    /**
      * The point 'p' does not need to be normalized. This is a fast operation
      * (logarithmic in the size of the cell union).
-     *#/
-     * public boolean contains(S2Point p) {
-     * return contains(S2CellId.fromPoint(p));
-     *
-     * }
-     *
-     * /**
+     */
+    private function containsPoint(S2Point $p): bool {
+        return $this->contains(S2CellId::fromPoint($p));
+    }
+
+    /**
      * The number of leaf cells covered by the union.
      * This will be no more than 6*2^60 for the whole sphere.
      *
-     * @return the number of leaf cells covered by the union
-     *#/
-     * public long leafCellsCovered() {
-     * long numLeaves = 0;
-     * for (S2CellId cellId : cellIds) {
-     * int invertedLevel = S2CellId.MAX_LEVEL - cellId.level();
-     * numLeaves += (1L << (invertedLevel << 1));
-     * }
-     * return numLeaves;
-     * }
-     *
-     *
-     * /**
+     * @return int the number of leaf cells covered by the union
+     */
+     public function leafCellsCovered(): int {
+         $numLeaves = 0;
+         foreach ($this->cellIds AS $cellId) {
+            $invertedLevel = S2CellId::MAX_LEVEL - $cellId->level();
+            $numLeaves += (1 << ($invertedLevel << 1));
+         }
+         return $numLeaves;
+     }
+
+
+    /**
      * Approximate this cell union's area by summing the average area of
      * each contained cell's average area, using {@link S2Cell#averageArea()}.
      * This is equivalent to the number of leaves covered, multiplied by
@@ -470,60 +602,58 @@ class S2CellUnion
      * always better to use the other function if all you care about is
      * the relative average area between objects.
      *
-     * @return the sum of the average area of each contained cell's average area
-     *#/
-     * public double averageBasedArea() {
-     * return S2Cell.averageArea(S2CellId.MAX_LEVEL) * leafCellsCovered();
-     * }
-     *
-     * /**
+     * @return float the sum of the average area of each contained cell's average area
+     */
+     public function averageBasedArea(): float {
+        return S2Cell::averageArea(S2CellId::MAX_LEVEL) * $this->leafCellsCovered();
+     }
+
+    /**
      * Calculates this cell union's area by summing the approximate area for each
      * contained cell, using {@link S2Cell#approxArea()}.
      *
-     * @return approximate area of the cell union
-     *#/
-     * public double approxArea() {
-     * double area = 0;
-     * for (S2CellId cellId : cellIds) {
-     * area += new S2Cell(cellId).approxArea();
-     * }
-     * return area;
-     * }
-     *
-     * /**
+     * @return float approximate area of the cell union
+     */
+     public function approxArea(): float {
+         $area = 0;
+         foreach($this->cellIds as $cellId) {
+            $area += (new S2Cell($cellId))->approxArea();
+         }
+         return $area;
+     }
+
+     /**
      * Calculates this cell union's area by summing the exact area for each
      * contained cell, using the {@link S2Cell#exactArea()}.
      *
-     * @return the exact area of the cell union
-     *#/
-     * public double exactArea() {
-     * double area = 0;
-     * for (S2CellId cellId : cellIds) {
-     * area += new S2Cell(cellId).exactArea();
-     * }
-     * return area;
-     * }
-     *
-     * /** Return true if two cell unions are identical. *#/
-     * @Override
-     * public boolean equals(Object that) {
-     * if (!(that instanceof S2CellUnion)) {
-     * return false;
-     * }
-     * S2CellUnion union = (S2CellUnion) that;
-     * return this.cellIds.equals(union.cellIds);
-     * }
-     *
-     * @Override
-     * public int hashCode() {
-     * int value = 17;
-     * for (S2CellId id : this) {
-     * value = 37 * value + id.hashCode();
-     * }
-     * return value;
-     * }
-     *
-     * /**
+     * @return float the exact area of the cell union
+     */
+     public function exactArea(): float {
+         $area = 0;
+         foreach($this->cellIds as $cellId) {
+            $area += (new S2Cell($cellId))->exactArea();
+         }
+         return $area;
+     }
+
+     /** Return true if two cell unions are identical. */
+     public function equals($that): bool {
+         if (!($that instanceof S2CellUnion)) {
+            return false;
+         }
+
+         return $this->cellIds === $that->cellIds;
+     }
+
+     public function hashCode(): int {
+         $value = 17;
+         foreach ($this->cellIds as $id) {
+            $value = 37 * $value + $id->hashCode();
+         }
+         return $value;
+     }
+
+     /**
      * Normalizes the cell union by discarding cells that are contained by other
      * cells, replacing groups of 4 child cells by their parent cell whenever
      * possible, and sorting all the cell ids in increasing order. Returns true if
@@ -532,7 +662,7 @@ class S2CellUnion
      *  This method *must* be called before doing any calculations on the cell
      * union, such as Intersects() or Contains().
      *
-     * @return true if the normalize operation had any effect on the cell union,
+     * @return bool true if the normalize operation had any effect on the cell union,
      *         false if the union was already normalized
      */
     public function normalize()
@@ -607,5 +737,14 @@ class S2CellUnion
             return true;
         }
         return false;
+    }
+
+    public function __toString() {
+        $output = [];
+        foreach($this->iterator() as $cellid) {
+            $output[] = $cellid->id();
+        }
+
+        return "S2CellUnion[ids=" . implode(",", $output) . '"]';
     }
 }

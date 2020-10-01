@@ -17,7 +17,7 @@ interface S2Region
      * Otherwise, either the region does not contain the cell or the containment
      * relationship could not be determined.
      */
-    public function contains($cell);
+    public function contains($target);
 
     /**
      * If this method returns false, the region does not intersect the given cell.

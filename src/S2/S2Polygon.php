@@ -330,18 +330,18 @@ class S2Polygon implements S2Region
     {
         if ($b instanceof S2Point) {
             /**
-             * The point 'p' does not need to be normalized.
+             * The point 'b' does not need to be normalized.
              */
             if ($this->numLoops() == 1) {
-                return $this->loop(0)->contains($p); // Optimization.
+                return $this->loop(0)->contains($b); // Optimization.
             }
-            if (!$this->bound->contains($p)) {
+            if (!$this->bound->contains($b)) {
                 return false;
             }
             $inside = false;
             for ($i = 0; $i < $this->numLoops(); ++$i) {
-                $inside ^= $this->loop($i)->contains($p);
-                if ($inside && !$hasHoles) {
+                $inside ^= $this->loop($i)->contains($b);
+                if ($inside && !$this->hasHoles) {
                     break; // Shells are disjoint.
                 }
             }
@@ -932,7 +932,7 @@ class S2Polygon implements S2Region
 
         foreach ($children as $child) {
             if ($child->containsNested($newLoop)) {
-                $this->insertLoop($newLoop, $child, $loopMap);
+                self::insertLoop($newLoop, $child, $loopMap);
                 return;
             }
         }

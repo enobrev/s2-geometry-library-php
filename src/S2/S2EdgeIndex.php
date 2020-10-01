@@ -2,6 +2,8 @@
 
 namespace S2;
 
+use S2\utils\Math;
+
 class S2EdgeIndex
 {
     /**
@@ -36,6 +38,7 @@ class S2EdgeIndex
 
     /**
      * Has the index been computed already?
+     * @var bool
      */
     private $indexComputed;
 
@@ -80,77 +83,76 @@ class S2EdgeIndex
         }
     }
 
-    /** Computes the index (if it has not been previously done). *#/
-     * public final function computeIndex() {
-     * if ($this->indexComputed) {
-     * return;
-     * }
-     * List
-     * <Long> cellList = Lists.newArrayList();
-     * List
-     * <Integer> edgeList = Lists.newArrayList();
-     * for (int i = 0; i < getNumEdges(); ++i) {
-     * S2Point from = edgeFrom(i);
-     * S2Point to = edgeTo(i);
-     * ArrayList
-     * <S2CellId> cover = Lists.newArrayList();
-     * int level = getCovering(from, to, true, cover);
-     * minimumS2LevelUsed = Math.min(minimumS2LevelUsed, level);
-     * for (S2CellId cellId : cover) {
-     * cellList.add(cellId.id());
-     * edgeList.add(i);
-     * }
-     * }
-     * cells = new long[cellList.size()];
-     * edges = new int[edgeList.size()];
-     * for (int i = 0; i < cells.length; i++) {
-     * cells[i] = cellList.get(i);
-     * edges[i] = edgeList.get(i);
-     * }
-     * sortIndex();
-     * indexComputed = true;
-     * }
-     *
-     * /** Sorts the parallel <code>cells</code> and <code>edges</code> arrays. *#/
-     * private function sortIndex() {
-     * // create an array of indices and sort based on the values in the parallel
-     * // arrays at each index
-     * Integer[] indices = new Integer[cells.length];
-     * for (int i = 0; i < indices.length; i++) {
-     * indices[i] = i;
-     * }
-     * Arrays.sort(indices, new Comparator
-     * <Integer>() {
-     * @Override
-     * public int compare(Integer index1, Integer index2) {
-     * return S2EdgeIndex.compare(cells[index1], edges[index1], cells[index2], edges[index2]);
-     * }
-     * });
-     * // copy the cells and edges in the order given by the sorted list of indices
-     * long[] newCells = new long[cells.length];
-     * int[] newEdges = new int[edges.length];
-     * for (int i = 0; i < indices.length; i++) {
-     * newCells[i] = cells[indices[i]];
-     * newEdges[i] = edges[indices[i]];
-     * }
-     * // replace the cells and edges with the sorted arrays
-     * cells = newCells;
-     * edges = newEdges;
-     * }
-     *
-     * public final function isIndexComputed() {
-     * return indexComputed;
-     * }
-     *
-     * /**
+    /** Computes the index (if it has not been previously done). */
+     public final function computeIndex() {
+         if ($this->indexComputed) {
+            return;
+         }
+         $cellList = [];
+         $edgeList = [];
+         for ($i = 0; $i < $this->getNumEdges(); ++$i) {
+             $from = $this->edgeFrom($i);
+             $to = $this->edgeTo($i);
+             $cover = [];
+             $level = $this->getCovering($from, $to, true, $cover);
+             $minimumS2LevelUsed = min($minimumS2LevelUsed, $level);
+             foreach ($cover as $cellId) {
+                 $cellList[] = $cellId->id();
+                 $edgeList[] = $i;
+             }
+         }
+         $this->cells = [];
+         $this->edges = [];
+         for ($i = 0; $i < count($this->cells); $i++) {
+             $this->cells[$i] = $cellList[$i];
+             $this->edges[$i] = $edgeList[$i];
+         }
+         $this->sortIndex();
+         $this->indexComputed = true;
+     }
+
+     /** Sorts the parallel <code>cells</code> and <code>edges</code> arrays. */
+     private function sortIndex() {
+         // create an array of indices and sort based on the values in the parallel
+         // arrays at each index
+         $indices = [];
+         for ($i = 0; $i < count($this->cells); $i++) {
+            $indices[$i] = $i;
+         }
+         usort($indices, function(int $index1, int $index2) {
+             return S2EdgeIndex::compare(
+                 $this->cells[$index1],
+                 $this->edges[$index1],
+                 $this->cells[$index2],
+                 $this->edges[$index2]
+             );
+         });
+
+         // copy the cells and edges in the order given by the sorted list of indices
+         $newCells = [];
+         $newEdges = [];
+         for ($i = 0; $i < count($indices); $i++) {
+            $newCells[$i] = $this->cells[$indices[$i]];
+            $newEdges[$i] = $this->edges[$indices[$i]];
+         }
+         // replace the cells and edges with the sorted arrays
+         $this->cells = $newCells;
+         $this->edges = $newEdges;
+     }
+
+     public function isIndexComputed(): bool {
+        return $this->indexComputed;
+     }
+
+      /**
      * Tell the index that we just received a new request for candidates. Useful
      * to compute when to switch to quad tree.
-     *#/
-     * protected final function incrementQueryCount() {
-     * ++queryCount;
-     * }
-     *
-     * /**
+     */
+     public final function incrementQueryCount() {
+        ++$this->queryCount;
+     }
+
+     /**
      * If the index hasn't been computed yet, looks at how much work has gone into
      * iterating using the brute force method, and how much more work is planned
      * as defined by 'cost'. If it were to have been cheaper to use a quad tree
@@ -185,102 +187,130 @@ class S2EdgeIndex
      * If m = 100, 30 queries will give m*n*testCost = m * costInsert = 100ms,
      * while the marginal cost to find is 3ms. Thus, this is a reasonable thing to
      * do.
-     *#/
-     * public final function predictAdditionalCalls(int n) {
-     * if (indexComputed) {
-     * return;
-     * }
-     * if (getNumEdges() > 100 && (queryCount + n) > 30) {
-     * computeIndex();
-     * }
-     * }
-     *
-     * /**
+     */
+     public final function predictAdditionalCalls(int $n) {
+         if ($this->indexComputed) {
+            return;
+         }
+         if ($this->getNumEdges() > 100 && ($this->queryCount + $n) > 30) {
+            $this->computeIndex();
+         }
+     }
+
+     /**
      * Overwrite these functions to give access to the underlying data. The
      * function getNumEdges() returns the number of edges in the index, while
      * edgeFrom(index) and edgeTo(index) return the "from" and "to" endpoints of
      * the edge at the given index.
-     *#/
-     * protected abstract function getNumEdges();
-     *
+     */
+     private $numEdges;
+
+    public function getNumEdges(): int {
+         return $this->numEdges;
+     }
+
+     public function setNumEdges(int $numEdges): void { // php cannot override methods on the fly, so let's just use a setter/getter
+        $this->numEdges = $numEdges;
+     }
+
+     /** @var callable */
+     private $_edgeFrom;
+
+     protected function edgeFrom(int $index) {
+         return ($this->_edgeFrom)($index);
+     }
+
+     public function setEdgeFrom(callable $edgeFrom): void { // php cannot override methods on the fly, so let's just use a setter/getter
+        $this->_edgeFrom = $edgeFrom;
+     }
+
+    /** @var callable */
+     private $_edgeTo;
+
+     protected function edgeTo(int $index) {
+         return ($this->_edgeTo)($index);
+     }
+
+     public function setEdgeTo(callable $edgeTo): void { // php cannot override methods on the fly, so let's just use a setter/getter
+        $this->_edgeTo = $edgeTo;
+     }
+     /*
      * protected abstract function edgeFrom(int index);
-     *
      * protected abstract function edgeTo(int index);
-     *
-     * /**
+
+     /**
      * Appends to "candidateCrossings" all edge references which may cross the
      * given edge. This is done by covering the edge and then finding all
      * references of edges whose coverings overlap this covering. Parent cells are
      * checked level by level. Child cells are checked all at once by taking
      * advantage of the natural ordering of S2CellIds.
-     *#/
-     * protected function findCandidateCrossings(S2Point a, S2Point b, List
-     * <Integer> candidateCrossings) {
-     * Preconditions.checkState(indexComputed);
-     * ArrayList
-     * <S2CellId> cover = Lists.newArrayList();
-     * getCovering(a, b, false, cover);
-     *
-     * // Edge references are inserted into the map once for each covering cell, so
-     * // absorb duplicates here
-     * Set
-     * <Integer> uniqueSet = new HashSet
-     * <Integer>();
-     * getEdgesInParentCells(cover, uniqueSet);
-     *
-     * // TODO(user): An important optimization for long query
-     * // edges (Contains queries): keep a bounding cap and clip the query
-     * // edge to the cap before starting the descent.
-     * getEdgesInChildrenCells(a, b, cover, uniqueSet);
-     *
-     * candidateCrossings.clear();
-     * candidateCrossings.addAll(uniqueSet);
-     * }
-     *
-     * /**
+     */
+    /**
      * Returns the smallest cell containing all four points, or
      * {@link S2CellId#sentinel()} if they are not all on the same face. The
      * points don't need to be normalized.
-     *#/
-     * private static function containingCell(S2Point pa, S2Point pb, S2Point pc, S2Point pd) {
-     * S2CellId a = S2CellId.fromPoint(pa);
-     * S2CellId b = S2CellId.fromPoint(pb);
-     * S2CellId c = S2CellId.fromPoint(pc);
-     * S2CellId d = S2CellId.fromPoint(pd);
-     *
-     * if (a.face() != b.face() || a.face() != c.face() || a.face() != d.face()) {
-     * return S2CellId.sentinel();
-     * }
-     *
-     * while (!a.equals(b) || !a.equals(c) || !a.equals(d)) {
-     * a = a.parent();
-     * b = b.parent();
-     * c = c.parent();
-     * d = d.parent();
-     * }
-     * return a;
-     * }
-     *
-     * /**
+     */
+     private static function containingCell(S2Point $pa, S2Point $pb, S2Point $pc, S2Point $pd) {
+         $a = S2CellId::fromPoint($pa);
+         $b = S2CellId::fromPoint($pb);
+         $c = S2CellId::fromPoint($pc);
+         $d = S2CellId::fromPoint($pd);
+
+         if ($a->face() !== $b->face() || $a->face() !== $c->face() || $a->face() !== $d->face()) {
+             return S2CellId::sentinel();
+         }
+
+         while (!$a->equals($b) || !$a->equals($c) || !$a->equals($d)) {
+             $a = $a->parent();
+             $b = $b->parent();
+             $c = $c->parent();
+             $d = $d->parent();
+         }
+         return $a;
+     }
+
+    public function findCandidateCrossings(S2Point $a, S2Point $b, array &$candidateCrossings) {
+        // Preconditions::checkState($this->indexComputed);
+        $cover = [];
+        $this->getCovering($a, $b, false, $cover);
+
+        // Edge references are inserted into the map once for each covering cell, so
+        // absorb duplicates here
+        $uniqueSet = new \SplObjectStorage();
+        $this->getEdgesInParentCells($cover, $uniqueSet);
+
+        // TODO(user): An important optimization for long query
+        // edges (Contains queries): keep a bounding cap and clip the query
+        // edge to the cap before starting the descent.
+        $this->getEdgesInChildrenCells($a, $b, $cover, $uniqueSet);
+
+        array_filter($candidateCrossings, function() {return false;}); // clearing the referenced array
+
+        foreach($uniqueSet as $value) {
+            $candidateCrossings[] = $value;
+        }
+    }
+
+    /**
      * Returns the smallest cell containing both points, or Sentinel if they are
      * not all on the same face. The points don't need to be normalized.
-     *#/
-     * private static function containingCell(S2Point pa, S2Point pb) {
-     * S2CellId a = S2CellId.fromPoint(pa);
-     * S2CellId b = S2CellId.fromPoint(pb);
-     *
-     * if (a.face() != b.face()) {
-     * return S2CellId.sentinel();
-     * }
-     *
-     * while (!a.equals(b)) {
-     * a = a.parent();
-     * b = b.parent();
-     * }
-     * return a;
-     * }
-     *
-     * /**
+     */
+     private static function containingCell_2(S2Point $pa, S2Point $pb) {
+         $a = S2CellId::fromPoint($pa);
+         $b = S2CellId::fromPoint($pb);
+
+         if ($a->face() !== $b->face()) {
+             return S2CellId::sentinel();
+         }
+
+         while (!$a->equals($b) ) {
+             $a = $a->parent();
+             $b = $b->parent();
+         }
+         return $a;
+     }
+
+     /**
      * Computes a cell covering of an edge. Clears edgeCovering and returns the
      * level of the s2 cells used in the covering (only one level is ever used for
      * each call).
@@ -290,242 +320,246 @@ class S2EdgeIndex
      *
      * It is guaranteed that no child of a covering cell will fully contain the
      * covered edge.
-     *#/
-     * private function getCovering(
-     * S2Point a, S2Point b, boolean thickenEdge, ArrayList
-     * <S2CellId> edgeCovering) {
-     * edgeCovering.clear();
-     *
-     * // Selects the ideal s2 level at which to cover the edge, this will be the
-     * // level whose S2 cells have a width roughly commensurate to the length of
-     * // the edge. We multiply the edge length by 2*THICKENING to guarantee the
-     * // thickening is honored (it's not a big deal if we honor it when we don't
-     * // request it) when doing the covering-by-cap trick.
-     * double edgeLength = a.angle(b);
-     * int idealLevel = S2Projections.MIN_WIDTH.getMaxLevel(edgeLength * (1 + 2 * THICKENING));
-     *
-     * S2CellId containingCellId;
-     * if (!thickenEdge) {
-     * containingCellId = containingCell(a, b);
-     * } else {
-     * if (idealLevel == S2CellId.MAX_LEVEL) {
-     * // If the edge is tiny, instabilities are more likely, so we
-     * // want to limit the number of operations.
-     * // We pretend we are in a cell much larger so as to trigger the
-     * // 'needs covering' case, so we won't try to thicken the edge.
-     * containingCellId = (new S2CellId(0xFFF0)).parent(3);
-     * } else {
-     * S2Point pq = S2Point.mul(S2Point.minus(b, a), THICKENING);
-     * S2Point ortho =
-     * S2Point.mul(S2Point.normalize(S2Point.crossProd(pq, a)), edgeLength * THICKENING);
-     * S2Point p = S2Point.minus(a, pq);
-     * S2Point q = S2Point.add(b, pq);
-     * // If p and q were antipodal, the edge wouldn't be lengthened,
-     * // and it could even flip! This is not a problem because
-     * // idealLevel != 0 here. The farther p and q can be is roughly
-     * // a quarter Earth away from each other, so we remain
-     * // Theta(THICKENING).
-     * containingCellId =
-     * containingCell(S2Point.minus(p, ortho), S2Point.add(p, ortho), S2Point.minus(q, ortho),
-     * S2Point.add(q, ortho));
-     * }
-     * }
-     *
-     * // Best case: edge is fully contained in a cell that's not too big.
-     * if (!containingCellId.equals(S2CellId.sentinel())
-     * && containingCellId.level() >= idealLevel - 2) {
-     * edgeCovering.add(containingCellId);
-     * return containingCellId.level();
-     * }
-     *
-     * if (idealLevel == 0) {
-     * // Edge is very long, maybe even longer than a face width, so the
-     * // trick below doesn't work. For now, we will add the whole S2 sphere.
-     * // TODO(user): Do something a tad smarter (and beware of the
-     * // antipodal case).
-     * for (S2CellId cellid = S2CellId.begin(0); !cellid.equals(S2CellId.end(0));
-     * cellid = cellid.next()) {
-     * edgeCovering.add(cellid);
-     * }
-     * return 0;
-     * }
-     * // TODO(user): Check trick below works even when vertex is at
-     * // interface
-     * // between three faces.
-     *
-     * // Use trick as in S2PolygonBuilder.PointIndex.findNearbyPoint:
-     * // Cover the edge by a cap centered at the edge midpoint, then cover
-     * // the cap by four big-enough cells around the cell vertex closest to the
-     * // cap center.
-     * S2Point middle = S2Point.normalize(S2Point.div(S2Point.add(a, b), 2));
-     * int actualLevel = Math.min(idealLevel, S2CellId.MAX_LEVEL - 1);
-     * S2CellId.fromPoint(middle).getVertexNeighbors(actualLevel, edgeCovering);
-     * return actualLevel;
-     * }
-     *
-     * /**
+     */
+     private function getCovering(S2Point $a, S2Point $b, bool $thickenEdge, array $edgeCovering) {
+
+         // Selects the ideal s2 level at which to cover the edge, this will be the
+         // level whose S2 cells have a width roughly commensurate to the length of
+         // the edge. We multiply the edge length by 2*THICKENING to guarantee the
+         // thickening is honored (it's not a big deal if we honor it when we don't
+         // request it) when doing the covering-by-cap trick.
+         $edgeLength = $a->angle($b);
+         $idealLevel = S2Projections::$PROJ->minWidth->getMaxLevel($edgeLength * (1 + 2 * self::THICKENING));
+
+         if (!$thickenEdge) {
+            $containingCellId = self::containingCell_2($a, $b);
+         } else {
+             if ($idealLevel === S2CellId::MAX_LEVEL) {
+                 // If the edge is tiny, instabilities are more likely, so we
+                 // want to limit the number of operations.
+                 // We pretend we are in a cell much larger so as to trigger the
+                 // 'needs covering' case, so we won't try to thicken the edge.
+                 $containingCellId = (new S2CellId(0xFFF0))->parent(3);
+             } else {
+                 $pq = S2Point::mul(S2Point::minus($b, $a), self::THICKENING);
+                 $ortho = S2Point::mul(S2Point::normalize(S2Point::crossProd($pq, $a)), $edgeLength * self::THICKENING);
+                 $p = S2Point::minus($a, $pq);
+                 $q = S2Point::add($b, $pq);
+                 // If p and q were antipodal, the edge wouldn't be lengthened,
+                 // and it could even flip! This is not a problem because
+                 // idealLevel != 0 here. The farther p and q can be is roughly
+                 // a quarter Earth away from each other, so we remain
+                 // Theta(THICKENING).
+                 $containingCellId = self::containingCell(
+                     S2Point::minus($p, $ortho),
+                     S2Point::add($p, $ortho),
+                     S2Point::minus($q, $ortho),
+                     S2Point::add($q, $ortho)
+                 );
+             }
+         }
+
+         // Best case: edge is fully contained in a cell that's not too big.
+         if (!$containingCellId->equals(S2CellId::sentinel()) && $containingCellId->level() >= $idealLevel - 2) {
+            $edgeCovering[] = $containingCellId;
+            return $containingCellId->level();
+         }
+
+         if ($idealLevel == 0) {
+             // Edge is very long, maybe even longer than a face width, so the
+             // trick below doesn't work. For now, we will add the whole S2 sphere.
+             // TODO(user): Do something a tad smarter (and beware of the
+             // antipodal case).
+             for ($cellid = S2CellId::begin(0); !$cellid->equals(S2CellId::end(0)); $cellid = $cellid->next()) {
+                $edgeCovering[] = $cellid;
+             }
+             return 0;
+         }
+         // TODO(user): Check trick below works even when vertex is at
+         // interface
+         // between three faces.
+
+         // Use trick as in S2PolygonBuilder.PointIndex.findNearbyPoint:
+         // Cover the edge by a cap centered at the edge midpoint, then cover
+         // the cap by four big-enough cells around the cell vertex closest to the
+         // cap center.
+         $middle = S2Point::normalize(S2Point::div(S2Point::add($a, $b), 2));
+         $actualLevel = min($idealLevel, S2CellId::MAX_LEVEL - 1);
+         S2CellId::fromPoint($middle)->getVertexNeighbors($actualLevel, $edgeCovering);
+         return $actualLevel;
+     }
+
+
+    /**
+     * A constant holding the minimum value an {@code int} can
+     * have, -2<sup>31</sup>.
+     */
+    private const  INTEGER_MIN_VALUE = 0x80000000;
+
+    /**
+     * A constant holding the maximum value an {@code int} can
+     * have, 2<sup>31</sup>-1.
+     */
+    private const INTEGER_MAX_VALUE = 0x7fffffff;
+
+     /**
      * Filters a list of entries down to the inclusive range defined by the given
      * cells, in <code>O(log N)</code> time.
      *
      * @param cell1 One side of the inclusive query range.
      * @param cell2 The other side of the inclusive query range.
      * @return An array of length 2, containing the start/end indices.
-     *#/
-     * private function getEdges(long cell1, long cell2) {
-     * // ensure cell1 <= cell2
-     * if (cell1 > cell2) {
-     * long temp = cell1;
-     * cell1 = cell2;
-     * cell2 = temp;
-     * }
-     * // The binary search returns -N-1 to indicate an insertion point at index N,
-     * // if an exact match cannot be found. Since the edge indices queried for are
-     * // not valid edge indices, we will always get -N-1, so we immediately
-     * // convert to N.
-     * return new int[]{
-     * -1 - binarySearch(cell1, Integer.MIN_VALUE),
-     * -1 - binarySearch(cell2, Integer.MAX_VALUE)};
-     * }
-     *
-     * private function binarySearch(long cell, int edge) {
-     * int low = 0;
-     * int high = cells.length - 1;
-     * while (low <= high) {
-     * int mid = (low + high) >>> 1;
-     * int cmp = compare(cells[mid], edges[mid], cell, edge);
-     * if (cmp < 0) {
-     * low = mid + 1;
-     * } else if (cmp > 0) {
-     * high = mid - 1;
-     * } else {
-     * return mid;
-     * }
-     * }
-     * return -(low + 1);
-     * }
-     *
-     * /**
+     */
+     private function getEdges(int $cell1, int $cell2): array {
+         // ensure cell1 <= cell2
+         if ($cell1 > $cell2) {
+             [$cell1, $cell2] = [$cell2, $cell1];
+         }
+         // The binary search returns -N-1 to indicate an insertion point at index N,
+         // if an exact match cannot be found. Since the edge indices queried for are
+         // not valid edge indices, we will always get -N-1, so we immediately
+         // convert to N.
+         return [
+             -1 - $this->binarySearch($cell1, self::INTEGER_MIN_VALUE),
+             -1 - $this->binarySearch($cell2, self::INTEGER_MAX_VALUE)
+         ];
+    }
+
+     private function binarySearch(int $cell, int $edge) {
+         $low = 0;
+         $high = count($this->cells) - 1;
+         while ($low <= $high) {
+             $mid = JavaMathHelper::uRShift(($low + $high), 1);
+             $cmp = self::compare($this->cells[$mid], $this->edges[$mid], $cell, $edge);
+             if ($cmp < 0) {
+                $low = $mid + 1;
+             } else if ($cmp > 0) {
+                $high = $mid - 1;
+             } else {
+                return $mid;
+             }
+         }
+         return -($low + 1);
+     }
+
+     /**
      * Adds to candidateCrossings all the edges present in any ancestor of any
      * cell of cover, down to minimumS2LevelUsed. The cell->edge map is in the
      * variable mapping.
-     *#/
-     * private function getEdgesInParentCells(List
-     * <S2CellId> cover, Set
-     * <Integer> candidateCrossings) {
-     * // Find all parent cells of covering cells.
-     * Set
-     * <S2CellId> parentCells = Sets.newHashSet();
-     * for (S2CellId coverCell : cover) {
-     * for (int parentLevel = coverCell.level() - 1; parentLevel >= minimumS2LevelUsed;
-     * --parentLevel) {
-     * if (!parentCells.add(coverCell.parent(parentLevel))) {
-     * break; // cell is already in => parents are too.
-     * }
-     * }
-     * }
-     *
-     * // Put parent cell edge references into result.
-     * for (S2CellId parentCell : parentCells) {
-     * int[] bounds = getEdges(parentCell.id(), parentCell.id());
-     * for (int i = bounds[0]; i < bounds[1]; i++) {
-     * candidateCrossings.add(edges[i]);
-     * }
-     * }
-     * }
-     *
-     * /**
+     */
+     private function getEdgesInParentCells(array $cover, \SplObjectStorage $candidateCrossings) {
+         // Find all parent cells of covering cells.
+         $parentCells = new \SplObjectStorage();
+         foreach ($cover as $coverCell) {
+             for ($parentLevel = $coverCell->level() - 1; $parentLevel >= $this->minimumS2LevelUsed; --$parentLevel) {
+                 $addingCell = $coverCell->parent($parentLevel);
+                 if ($parentCells->contains($addingCell)) {
+                     break;
+                 }
+
+                 $parentCells->attach($addingCell);
+             }
+         }
+
+         // Put parent cell edge references into result.
+         foreach ($parentCells as $parentCell) {
+             $bounds = $this->getEdges($parentCell->id(), $parentCell->id());
+             for ($i = $bounds[0]; $i < $bounds[1]; $i++) {
+                 $candidateCrossings->attach($this->edges[$i]);
+             }
+         }
+     }
+
+     /**
      * Returns true if ab possibly crosses cd, by clipping tiny angles to zero.
-     *#/
-     * private static function lenientCrossing(S2Point a, S2Point b, S2Point c, S2Point d) {
-     * // assert (S2.isUnitLength(a));
-     * // assert (S2.isUnitLength(b));
-     * // assert (S2.isUnitLength(c));
-     *
-     * double acb = S2Point.crossProd(a, c).dotProd(b);
-     * double bda = S2Point.crossProd(b, d).dotProd(a);
-     * if (Math.abs(acb) < MAX_DET_ERROR || Math.abs(bda) < MAX_DET_ERROR) {
-     * return true;
-     * }
-     * if (acb * bda < 0) {
-     * return false;
-     * }
-     * double cbd = S2Point.crossProd(c, b).dotProd(d);
-     * double dac = S2Point.crossProd(c, a).dotProd(c);
-     * if (Math.abs(cbd) < MAX_DET_ERROR || Math.abs(dac) < MAX_DET_ERROR) {
-     * return true;
-     * }
-     * return (acb * cbd >= 0) && (acb * dac >= 0);
-     * }
-     *
-     * /**
+     */
+     private static function lenientCrossing(S2Point $a, S2Point $b, S2Point $c, S2Point $d) {
+         // assert (S2.isUnitLength(a));
+         // assert (S2.isUnitLength(b));
+         // assert (S2.isUnitLength(c));
+
+         $acb = S2Point::crossProd($a, $c)->dotProd($b);
+         $bda = S2Point::crossProd($b, $d)->dotProd($a);
+         if (abs($acb) < self::MAX_DET_ERROR || abs($bda) < self::MAX_DET_ERROR) {
+            return true;
+         }
+         if ($acb * $bda < 0) {
+            return false;
+         }
+         $cbd = S2Point::crossProd($c, $b)->dotProd($d);
+         $dac = S2Point::crossProd($c, $a)->dotProd($c);
+         if (abs($cbd) < self::MAX_DET_ERROR || abs($dac) < self::MAX_DET_ERROR) {
+             return true;
+         }
+         return ($acb * $cbd >= 0) && ($acb * $dac >= 0);
+     }
+
+     /**
      * Returns true if the edge and the cell (including boundary) intersect.
-     *#/
-     * private static function edgeIntersectsCellBoundary(S2Point a, S2Point b, S2Cell cell) {
-     * S2Point[] vertices = new S2Point[4];
-     * for (int i = 0; i < 4; ++i) {
-     * vertices[i] = cell.getVertex(i);
-     * }
-     * for (int i = 0; i < 4; ++i) {
-     * S2Point fromPoint = vertices[i];
-     * S2Point toPoint = vertices[(i + 1) % 4];
-     * if (lenientCrossing(a, b, fromPoint, toPoint)) {
-     * return true;
-     * }
-     * }
-     * return false;
-     * }
-     *
-     * /**
+     */
+     private static function edgeIntersectsCellBoundary(S2Point $a, S2Point $b, S2Cell $cell) {
+         $vertices = [];
+         for ($i = 0; $i < 4; ++$i) {
+            $vertices[$i] = $cell->getVertex($i);
+         }
+         for ($i = 0; $i < 4; ++$i) {
+             $fromPoint = $vertices[$i];
+             $toPoint = $vertices[($i + 1) % 4];
+             if (self::lenientCrossing($a, $b, $fromPoint, $toPoint)) {
+                return true;
+             }
+         }
+         return false;
+     }
+
+     /**
      * Appends to candidateCrossings the edges that are fully contained in an S2
      * covering of edge. The covering of edge used is initially cover, but is
      * refined to eliminate quickly subcells that contain many edges but do not
      * intersect with edge.
-     *#/
-     * private function getEdgesInChildrenCells(S2Point a, S2Point b, List
-     * <S2CellId> cover,
-     * Set
-     * <Integer> candidateCrossings) {
-     * // Put all edge references of (covering cells + descendant cells) into
-     * // result.
-     * // This relies on the natural ordering of S2CellIds.
-     * S2Cell[] children = null;
-     * while (!cover.isEmpty()) {
-     * S2CellId cell = cover.remove(cover.size() - 1);
-     * int[] bounds = getEdges(cell.rangeMin().id(), cell.rangeMax().id());
-     * if (bounds[1] - bounds[0] <= 16) {
-     * for (int i = bounds[0]; i < bounds[1]; i++) {
-     * candidateCrossings.add(edges[i]);
-     * }
-     * } else {
-     * // Add cells at this level
-     * bounds = getEdges(cell.id(), cell.id());
-     * for (int i = bounds[0]; i < bounds[1]; i++) {
-     * candidateCrossings.add(edges[i]);
-     * }
-     * // Recurse on the children -- hopefully some will be empty.
-     * if (children == null) {
-     * children = new S2Cell[4];
-     * for (int i = 0; i < 4; ++i) {
-     * children[i] = new S2Cell();
-     * }
-     * }
-     * new S2Cell(cell).subdivide(children);
-     * for (S2Cell child : children) {
-     * // TODO(user): Do the check for the four cells at once,
-     * // as it is enough to check the four edges between the cells. At
-     * // this time, we are checking 16 edges, 4 times too many.
-     * //
-     * // Note that given the guarantee of AppendCovering, it is enough
-     * // to check that the edge intersect with the cell boundary as it
-     * // cannot be fully contained in a cell.
-     * if (edgeIntersectsCellBoundary(a, b, child)) {
-     * cover.add(child.id());
-     * }
-     * }
-     * }
-     * }
-     * }
      */
+     private function getEdgesInChildrenCells(S2Point $a, S2Point $b, array $cover, \SplObjectStorage $candidateCrossings) {
+         // Put all edge references of (covering cells + descendant cells) into
+         // result.
+         // This relies on the natural ordering of S2CellIds.
+         $children = null;
+         while (count($cover) > 0) {
+             $cell = array_pop($cover);
+             $bounds = $this->getEdges($cell->rangeMin()->id(), $cell->rangeMax()->id());
+             if ($bounds[1] - $bounds[0] <= 16) {
+                 for ($i = $bounds[0]; $i < $bounds[1]; $i++) {
+                     $candidateCrossings->attach($this->edges[$i]);
+                 }
+             } else {
+                 // Add cells at this level
+                 $bounds = $this->getEdges($cell->id(), $cell->id());
+                 for ($i = $bounds[0]; $i < $bounds[1]; $i++) {
+                    $candidateCrossings->attach($this->edges[$i]);
+                 }
+                 // Recurse on the children -- hopefully some will be empty.
+                 if ($children === null) {
+                     $children = [];
+                     for ($i = 0; $i < 4; ++$i) {
+                        $children[$i] = new S2Cell();
+                     }
+                 }
+                 (new S2Cell($cell))->subdivide($children);
+                 foreach ($children as $child) {
+                 // TODO(user): Do the check for the four cells at once,
+                 // as it is enough to check the four edges between the cells. At
+                 // this time, we are checking 16 edges, 4 times too many.
+                 //
+                 // Note that given the guarantee of AppendCovering, it is enough
+                 // to check that the edge intersect with the cell boundary as it
+                 // cannot be fully contained in a cell.
+                     if (self::edgeIntersectsCellBoundary($a, $b, $child)) {
+                         $cover[] = $child->id();
+                     }
+                 }
+             }
+         }
+     }
+
 }
 
 /*
@@ -540,6 +574,7 @@ class DataEdgeIterator
 {
     /**
      * The structure containing the data edges.
+     * @var S2EdgeIndex
      */
     private $edgeIndex;
 
@@ -563,74 +598,74 @@ class DataEdgeIterator
     /**
      * All the candidates obtained by getCandidates() when we are using a
      * quad-tree (i.e. isBruteForce = false).
-     *#/
-     * ArrayList
-     * <Integer> candidates;
      *
-     * /**
+     * @var int[]
+     */
+     public $candidates;
+
+     /**
      * Index within array above. We have: currentIndex =
      * candidates.get(currentIndexInCandidates).
-     *#/
-     * private int currentIndexInCandidates;
-     *
-     * public DataEdgeIterator(S2EdgeIndex edgeIndex) {
-     * this.edgeIndex = edgeIndex;
-     * candidates = Lists.newArrayList();
-     * }
-     *
-     * /**
+     * @var int
+     */
+     private $currentIndexInCandidates;
+
+     public function __construct(S2EdgeIndex $edgeIndex) {
+         $this->edgeIndex = $edgeIndex;
+         $this->candidates = [];
+     }
+
+     /**
      * Initializes the iterator to iterate over a set of candidates that may
      * cross the edge (a,b).
-     *#/
-     * public void getCandidates(S2Point a, S2Point b) {
-     * edgeIndex.predictAdditionalCalls(1);
-     * isBruteForce = !edgeIndex.isIndexComputed();
-     * if (isBruteForce) {
-     * edgeIndex.incrementQueryCount();
-     * currentIndex = 0;
-     * numEdges = edgeIndex.getNumEdges();
-     * } else {
-     * candidates.clear();
-     * edgeIndex.findCandidateCrossings(a, b, candidates);
-     * currentIndexInCandidates = 0;
-     * if (!candidates.isEmpty()) {
-     * currentIndex = candidates.get(0);
-     * }
-     * }
-     * }
-     *
-     * /**
-     * Index of the current edge in the iteration.
-     *#/
-     * public int index() {
-     * Preconditions.checkState(hasNext());
-     * return currentIndex;
-     * }
-     *
-     * /**
-     * False if there are no more candidates; true otherwise.
-     *#/
-     * public boolean hasNext() {
-     * if (isBruteForce) {
-     * return (currentIndex < numEdges);
-     * } else {
-     * return currentIndexInCandidates < candidates.size();
-     * }
-     * }
-     *
-     * /**
-     * Iterate to the next available candidate.
-     *#/
-     * public void next() {
-     * Preconditions.checkState(hasNext());
-     * if (isBruteForce) {
-     * ++currentIndex;
-     * } else {
-     * ++currentIndexInCandidates;
-     * if (currentIndexInCandidates < candidates.size()) {
-     * currentIndex = candidates.get(currentIndexInCandidates);
-     * }
-     * }
-     * }
      */
+     public function getCandidates(S2Point $a, S2Point $b): void {
+         $this->edgeIndex->predictAdditionalCalls(1);
+         $isBruteForce = !$this->edgeIndex->isIndexComputed();
+         if ($isBruteForce) {
+             $this->edgeIndex->incrementQueryCount();
+             $this->currentIndex = 0;
+             $this->numEdges = $this->edgeIndex->getNumEdges();
+         } else {
+             $this->edgeIndex->findCandidateCrossings($a, $b, $this->candidates);
+             $this->currentIndexInCandidates = 0;
+             if (count($this->candidates) > 0) {
+                $this->currentIndex = $this->candidates[0];
+             }
+         }
+     }
+
+     /**
+     * Index of the current edge in the iteration.
+     */
+     public function index(): int {
+        //Preconditions.checkState(hasNext());
+        return $this->currentIndex;
+     }
+     /**
+     * False if there are no more candidates; true otherwise.
+     */
+     public function hasNext(): bool {
+        if ($this->isBruteForce) {
+            return ($this->currentIndex < $this->numEdges);
+        } else {
+            return $this->currentIndexInCandidates < count($this->candidates);
+        }
+     }
+
+     /**
+     * Iterate to the next available candidate.
+     */
+     public function next(): void {
+         //Preconditions.checkState(hasNext());
+         if ($this->isBruteForce) {
+            ++$this->currentIndex;
+         } else {
+            ++$this->currentIndexInCandidates;
+            if ($this->currentIndexInCandidates < count($this->candidates)) {
+                $this->currentIndex = $this->candidates[$this->currentIndexInCandidates];
+            }
+         }
+     }
+
 }

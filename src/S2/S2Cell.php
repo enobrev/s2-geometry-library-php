@@ -80,24 +80,22 @@ class S2Cell implements S2Region
         // Vertices are returned in the order SW, SE, NE, NW.
         return S2Projections::faceUvToXyz($this->face, $this->uv[0][($k >> 1) ^ ($k & 1)], $this->uv[1][$k >> 1]);
     }
-/*
-    public S2Point getEdge(int k) {
-        return S2Point.normalize(getEdgeRaw(k));
+    public function getEdge(int $k): S2Point {
+        return S2Point::normalize($this->getEdgeRaw($k));
     }
 
-    public S2Point getEdgeRaw(int k) {
-        switch (k) {
+    public function getEdgeRaw(int $k): S2Point {
+        switch ($k) {
             case 0:
-                return S2Projections.getVNorm(face, uv[1][0]); // South
+                return S2Projections::getVNorm($this->face, $this->uv[1][0]); // South
             case 1:
-                return S2Projections.getUNorm(face, uv[0][1]); // East
+                return S2Projections::getUNorm($this->face, $this->uv[0][1]); // East
             case 2:
-                return S2Point.neg(S2Projections.getVNorm(face, uv[1][1])); // North
+                return S2Point::neg(S2Projections::getVNorm($this->face, $this->uv[1][1])); // North
             default:
-            return S2Point.neg(S2Projections.getUNorm(face, uv[0][0])); // West
+            return S2Point::neg(S2Projections::getUNorm($this->face, $this->uv[0][0])); // West
         }
     }
-*/
     /**
      * Return the inward-facing normal of the great circle passing through the
      * edge from vertex k to vertex k+1 (mod 4). The normals returned by
@@ -189,12 +187,12 @@ class S2Cell implements S2Region
 
     /**
      * Return the average area for cells at the given level.
-     *#/
-     * public static double averageArea(int level) {
-     * return S2Projections.AVG_AREA.getValue(level);
-     * }
-     *
-     * /**
+     */
+     public static function averageArea(int $level): float {
+         return S2Projections::$PROJ->avgArea->getValue($level);
+     }
+
+     /**
      * Return the average area of cells at this level. This is accurate to within
      * a factor of 1.7 (for S2_QUADRATIC_PROJECTION) and is extremely cheap to
      * compute.
@@ -208,43 +206,44 @@ class S2Cell implements S2Region
      * 3% percent for all cell sizes and accurate to within 0.1% for cells at
      * level 5 or higher (i.e. 300km square or smaller). It is moderately cheap to
      * compute.
-     *#/
-     * public double approxArea() {
-     *
-     * // All cells at the first two levels have the same area.
-     * if (level < 2) {
-     * return averageArea(level);
-     * }
-     *
-     * // First, compute the approximate area of the cell when projected
-     * // perpendicular to its normal. The cross product of its diagonals gives
-     * // the normal, and the length of the normal is twice the projected area.
-     * double flatArea = 0.5 * S2Point.crossProd(
-     * S2Point.sub(getVertex(2), getVertex(0)), S2Point.sub(getVertex(3), getVertex(1))).norm();
-     *
-     * // Now, compensate for the curvature of the cell surface by pretending
-     * // that the cell is shaped like a spherical cap. The ratio of the
-     * // area of a spherical cap to the area of its projected disc turns out
-     * // to be 2 / (1 + sqrt(1 - r*r)) where "r" is the radius of the disc.
-     * // For example, when r=0 the ratio is 1, and when r=1 the ratio is 2.
-     * // Here we set Pi*r*r == flat_area to find the equivalent disc.
-     * return flatArea * 2 / (1 + Math.sqrt(1 - Math.min(S2.M_1_PI * flatArea, 1.0)));
-     * }
-     *
-     * /**
+     */
+     public function approxArea(): float {
+
+         // All cells at the first two levels have the same area.
+         if ($this->level < 2) {
+             return self::averageArea($this->level);
+         }
+
+         // First, compute the approximate area of the cell when projected
+         // perpendicular to its normal. The cross product of its diagonals gives
+         // the normal, and the length of the normal is twice the projected area.
+         $flatArea = 0.5 * S2Point::crossProd(
+             S2Point::sub($this->getVertex(2), $this->getVertex(0)),
+             S2Point::sub($this->getVertex(3), $this->getVertex(1)))->norm();
+
+         // Now, compensate for the curvature of the cell surface by pretending
+         // that the cell is shaped like a spherical cap. The ratio of the
+         // area of a spherical cap to the area of its projected disc turns out
+         // to be 2 / (1 + sqrt(1 - r*r)) where "r" is the radius of the disc.
+         // For example, when r=0 the ratio is 1, and when r=1 the ratio is 2.
+         // Here we set Pi*r*r == flat_area to find the equivalent disc.
+        return $flatArea * 2 / (1 + sqrt(1 - min(S2::M_1_PI * $flatArea, 1.0)));
+     }
+
+     /**
      * Return the area of this cell as accurately as possible. This method is more
      * expensive but it is accurate to 6 digits of precision even for leaf cells
      * (whose area is approximately 1e-18).
-     *#/
-     * public double exactArea() {
-     * S2Point v0 = getVertex(0);
-     * S2Point v1 = getVertex(1);
-     * S2Point v2 = getVertex(2);
-     * S2Point v3 = getVertex(3);
-     * return S2.area(v0, v1, v2) + S2.area(v0, v2, v3);
-     * }
-     *
-     * // //////////////////////////////////////////////////////////////////////
+     */
+     public function exactArea(): float {
+         $v0 = $this->getVertex(0);
+         $v1 = $this->getVertex(1);
+         $v2 = $this->getVertex(2);
+         $v3 = $this->getVertex(3);
+         return S2::area($v0, $v1, $v2) + S2::area($v0, $v2, $v3);
+     }
+
+     /* // //////////////////////////////////////////////////////////////////////
      * // S2Region interface (see {@code S2Region} for details):
      *
      * @Override
@@ -374,11 +373,11 @@ class S2Cell implements S2Region
         // true for both adjacent cells.
         if ($p instanceof S2Point) {
             $uvPoint = S2Projections::faceXyzToUv($this->face, $p);
-            if ($uvPoint == null) {
+            if ($uvPoint === null) {
                 return false;
             }
-            return ($uvPoint->x() >= $uv[0][0] && $uvPoint->x() <= $uv[0][1]
-                && $uvPoint->y() >= $uv[1][0] && $uvPoint->y() <= $uv[1][1]);
+            return ($uvPoint->x() >= $this->uv[0][0] && $uvPoint->x() <= $this->uv[0][1]
+                && $uvPoint->y() >= $this->uv[1][0] && $uvPoint->y() <= $this->uv[1][1]);
         } else if ($p instanceof S2Cell) {
             return $this->cellId . contains($p->cellId);
         }

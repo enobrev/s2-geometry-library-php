@@ -207,14 +207,14 @@ class S2 {
      * /**
      * Return a unit-length vector that is orthogonal to "a". Satisfies Ortho(-a)
      * = -Ortho(a) for all a.
-     *#/
-     * public static S2Point ortho(S2Point a) {
-     * // The current implementation in S2Point has the property we need,
-     * // i.e. Ortho(-a) = -Ortho(a) for all a.
-     * return a.ortho();
-     * }
-     *
-     * /**
+     */
+     public static function ortho(S2Point $a): S2Point {
+         // The curr`ent implementation in S2Point has the property we need,
+         // i.e. Ort`ho(-a) = -Ortho(a) for all a.
+        return $a->ortho();
+     }
+
+     /**
      * Return the area of triangle ABC. The method used is about twice as
      * expensive as Girard's formula, but it is numerically stable for both large
      * and very small triangles. The points do not need to be normalized. The area
@@ -223,92 +223,92 @@ class S2 {
      *  The triangle area is undefined if it contains two antipodal points, and
      * becomes numerically unstable as the length of any edge approaches 180
      * degrees.
-     *#/
-     * static double area(S2Point a, S2Point b, S2Point c) {
-     * // This method is based on l'Huilier's theorem,
-     * //
-     * // tan(E/4) = sqrt(tan(s/2) tan((s-a)/2) tan((s-b)/2) tan((s-c)/2))
-     * //
-     * // where E is the spherical excess of the triangle (i.e. its area),
-     * // a, b, c, are the side lengths, and
-     * // s is the semiperimeter (a + b + c) / 2 .
-     * //
-     * // The only significant source of error using l'Huilier's method is the
-     * // cancellation error of the terms (s-a), (s-b), (s-c). This leads to a
-     * // *relative* error of about 1e-16 * s / min(s-a, s-b, s-c). This compares
-     * // to a relative error of about 1e-15 / E using Girard's formula, where E is
-     * // the true area of the triangle. Girard's formula can be even worse than
-     * // this for very small triangles, e.g. a triangle with a true area of 1e-30
-     * // might evaluate to 1e-5.
-     * //
-     * // So, we prefer l'Huilier's formula unless dmin < s * (0.1 * E), where
-     * // dmin = min(s-a, s-b, s-c). This basically includes all triangles
-     * // except for extremely long and skinny ones.
-     * //
-     * // Since we don't know E, we would like a conservative upper bound on
-     * // the triangle area in terms of s and dmin. It's possible to show that
-     * // E <= k1 * s * sqrt(s * dmin), where k1 = 2*sqrt(3)/Pi (about 1).
-     * // Using this, it's easy to show that we should always use l'Huilier's
-     * // method if dmin >= k2 * s^5, where k2 is about 1e-2. Furthermore,
-     * // if dmin < k2 * s^5, the triangle area is at most k3 * s^4, where
-     * // k3 is about 0.1. Since the best case error using Girard's formula
-     * // is about 1e-15, this means that we shouldn't even consider it unless
-     * // s >= 3e-4 or so.
-     *
-     * // We use volatile doubles to force the compiler to truncate all of these
-     * // quantities to 64 bits. Otherwise it may compute a value of dmin > 0
-     * // simply because it chose to spill one of the intermediate values to
-     * // memory but not one of the others.
-     * final double sa = b.angle(c);
-     * final double sb = c.angle(a);
-     * final double sc = a.angle(b);
-     * final double s = 0.5 * (sa + sb + sc);
-     * if (s >= 3e-4) {
-     * // Consider whether Girard's formula might be more accurate.
-     * double s2 = s * s;
-     * double dmin = s - Math.max(sa, Math.max(sb, sc));
-     * if (dmin < 1e-2 * s * s2 * s2) {
-     * // This triangle is skinny enough to consider Girard's formula.
-     * double area = girardArea(a, b, c);
-     * if (dmin < s * (0.1 * area)) {
-     * return area;
-     * }
-     * }
-     * }
-     * // Use l'Huilier's formula.
-     * return 4
-     * Math.atan(
-     * Math.sqrt(
-     * Math.max(0.0,
-     * Math.tan(0.5 * s) * Math.tan(0.5 * (s - sa)) * Math.tan(0.5 * (s - sb))
-     * Math.tan(0.5 * (s - sc)))));
-     * }
-     *
-     * /**
+     */
+     static function area(S2Point $a, S2Point $b, S2Point $c): float {
+         // This method is based on l'Huilier's theorem,
+         //
+         // tan(E/4) = sqrt(tan(s/2) tan((s-a)/2) tan((s-b)/2) tan((s-c)/2))
+         //
+         // where E is the spherical excess of the triangle (i.e. its area),
+         // a, b, c, are the side lengths, and
+         // s is the semiperimeter (a + b + c) / 2 .
+         //
+         // The only significant source of error using l'Huilier's method is the
+         // cancellation error of the terms (s-a), (s-b), (s-c). This leads to a
+         // *relative* error of about 1e-16 * s / min(s-a, s-b, s-c). This compares
+         // to a relative error of about 1e-15 / E using Girard's formula, where E is
+         // the true area of the triangle. Girard's formula can be even worse than
+         // this for very small triangles, e.g. a triangle with a true area of 1e-30
+         // might evaluate to 1e-5.
+         //
+         // So, we prefer l'Huilier's formula unless dmin < s * (0.1 * E), where
+         // dmin = min(s-a, s-b, s-c). This basically includes all triangles
+         // except for extremely long and skinny ones.
+         //
+         // Since we don't know E, we would like a conservative upper bound on
+         // the triangle area in terms of s and dmin. It's possible to show that
+         // E <= k1 * s * sqrt(s * dmin), where k1 = 2*sqrt(3)/Pi (about 1).
+         // Using this, it's easy to show that we should always use l'Huilier's
+         // method if dmin >= k2 * s^5, where k2 is about 1e-2. Furthermore,
+         // if dmin < k2 * s^5, the triangle area is at most k3 * s^4, where
+         // k3 is about 0.1. Since the best case error using Girard's formula
+         // is about 1e-15, this means that we shouldn't even consider it unless
+         // s >= 3e-4 or so.
+
+         // We use volatile doubles to force the compiler to truncate all of these
+         // quantities to 64 bits. Otherwise it may compute a value of dmin > 0
+         // simply because it chose to spill one of the intermediate values to
+         // memory but not one of the others.
+         $sa = $b->angle($c);
+         $sb = $c->angle($a);
+         $sc = $a->angle($b);
+         $s = 0.5 * ($sa + $sb + $sc);
+         if ($s >= 3e-4) {
+             // Consider whether Girard's formula might be more accurate.
+             $s2 = $s * $s;
+             $dmin = $s - max($sa, max($sb, $sc));
+             if ($dmin < 1e-2 * $s * $s2 * $s2) {
+                 // This triangle is skinny enough to consider Girard's formula.
+                 $area = self::girardArea($a, $b, $c);
+                 if ($dmin < $s * (0.1 * $area)) {
+                     return $area;
+                 }
+             }
+         }
+         // Use l'Huilier's formula.
+         return 4
+            * atan(
+                sqrt(
+                    max(0.0,
+                tan(0.5 * $s) * tan(0.5 * ($s - $sa)) * tan(0.5 * ($s - $sb))
+                         * tan(0.5 * ($s - $sc)))));
+     }
+
+     /**
      * Return the area of the triangle computed using Girard's formula. This is
      * slightly faster than the Area() method above is not accurate for very small
      * triangles.
-     *#/
-     * public static double girardArea(S2Point a, S2Point b, S2Point c) {
-     * // This is equivalent to the usual Girard's formula but is slightly
-     * // more accurate, faster to compute, and handles a == b == c without
-     * // a special case.
-     *
-     * S2Point ab = S2Point.crossProd(a, b);
-     * S2Point bc = S2Point.crossProd(b, c);
-     * S2Point ac = S2Point.crossProd(a, c);
-     * return Math.max(0.0, ab.angle(ac) - ab.angle(bc) + bc.angle(ac));
-     * }
-     *
-     * /**
+     */
+     public static function girardArea(S2Point $a, S2Point $b, S2Point $c): float {
+         // This is equivalent to the usual Girard's formula but is slightly
+         // more accurate, faster to compute, and handles a == b == c without
+         // a special case.
+
+         $ab = S2Point::crossProd($a, $b);
+         $bc = S2Point::crossProd($b, $c);
+         $ac = S2Point::crossProd($a, $c);
+         return max(0.0, $ab->angle($ac) - $ab->angle($bc) + $bc->angle($ac));
+     }
+
+     /**
      * Like Area(), but returns a positive value for counterclockwise triangles
      * and a negative value otherwise.
-     *#/
-     * public static double signedArea(S2Point a, S2Point b, S2Point c) {
-     * return area(a, b, c) * robustCCW(a, b, c);
-     * }
-     *
-     * // About centroids:
+     */
+     public static function signedArea(S2Point $a, S2Point $b, S2Point $c): float {
+        return self::area($a, $b, $c) * self::robustCCW($a, $b, $c);
+     }
+
+     /* // About centroids:
      * // ----------------
      * //
      * // There are several notions of the "centroid" of a triangle. First, there
@@ -432,187 +432,199 @@ class S2 {
      *
      *  Note: a, b and c are expected to be of unit length. Otherwise, the results
      * are undefined.
-     *#/
-     * public static int robustCCW(S2Point a, S2Point b, S2Point c) {
-     * return robustCCW(a, b, c, S2Point.crossProd(a, b));
-     * }
-     *
-     * /**
+     */
+     public static function robustCCW(S2Point $a, S2Point $b, S2Point $c): int {
+        return self::robustCCWWithCross($a, $b, $c, S2Point::crossProd($a, $$b));
+     }
+
+     /**
      * A more efficient version of RobustCCW that allows the precomputed
      * cross-product of A and B to be specified.
      *
      *  Note: a, b and c are expected to be of unit length. Otherwise, the results
      * are undefined
-     *#/
-     * public static int robustCCW(S2Point a, S2Point b, S2Point c, S2Point aCrossB) {
-     * // assert (isUnitLength(a) && isUnitLength(b) && isUnitLength(c));
-     *
-     * // There are 14 multiplications and additions to compute the determinant
-     * // below. Since all three points are normalized, it is possible to show
-     * // that the average rounding error per operation does not exceed 2**-54,
-     * // the maximum rounding error for an operation whose result magnitude is in
-     * // the range [0.5,1). Therefore, if the absolute value of the determinant
-     * // is greater than 2*14*(2**-54), the determinant will have the same sign
-     * // even if the arguments are rotated (which produces a mathematically
-     * // equivalent result but with potentially different rounding errors).
-     * final double kMinAbsValue = 1.6e-15; // 2 * 14 * 2**-54
-     *
-     * double det = aCrossB.dotProd(c);
-     *
-     * // Double-check borderline cases in debug mode.
-     * // assert ((Math.abs(det) < kMinAbsValue) || (Math.abs(det) > 1000 * kMinAbsValue)
-     * //    || (det * expensiveCCW(a, b, c) > 0));
-     *
-     * if (det > kMinAbsValue) {
-     * return 1;
-     * }
-     *
-     * if (det < -kMinAbsValue) {
-     * return -1;
-     * }
-     *
-     * return expensiveCCW(a, b, c);
-     * }
-     *
-     * /**
+     */
+     public static function robustCCWWithCross(S2Point $a, S2Point $b, S2Point $c, S2Point $aCrossB): int {
+        assert (self::isUnitLength($a) && self::isUnitLength($b) && self::isUnitLength($c));
+
+         // There are 14 multiplications and additions to compute the determinant
+         // below. Since all three points are normalized, it is possible to show
+         // that the average rounding error per operation does not exceed 2**-54,
+         // the maximum rounding error for an operation whose result magnitude is in
+         // the range [0.5,1). Therefore, if the absolute value of the determinant
+         // is greater than 2*14*(2**-54), the determinant will have the same sign
+         // even if the arguments are rotated (which produces a mathematically
+         // equivalent result but with potentially different rounding errors).
+         /** @var float */ $kMinAbsValue = 1.6e-15; // 2 * 14 * 2**-54
+
+         /** @var float */ $det = $aCrossB->dotProd($c);
+
+         // Double-check borderline cases in debug mode.
+         // assert ((Math.abs(det) < kMinAbsValue) || (Math.abs(det) > 1000 * kMinAbsValue)
+         //    || (det * expensiveCCW(a, b, c) > 0));
+
+         if ($det > $kMinAbsValue) {
+            return 1;
+         }
+
+         if ($det < -$kMinAbsValue) {
+            return -1;
+         }
+
+         return self::expensiveCCW($a, $b, $c);
+     }
+
+     /**
      * A relatively expensive calculation invoked by RobustCCW() if the sign of
      * the determinant is uncertain.
-     *#/
-     * private static int expensiveCCW(S2Point a, S2Point b, S2Point c) {
-     * // Return zero if and only if two points are the same. This ensures (1).
-     * if (a.equals(b) || b.equals(c) || c.equals(a)) {
-     * return 0;
-     * }
-     *
-     * // Now compute the determinant in a stable way. Since all three points are
-     * // unit length and we know that the determinant is very close to zero, this
-     * // means that points are very nearly colinear. Furthermore, the most common
-     * // situation is where two points are nearly identical or nearly antipodal.
-     * // To get the best accuracy in this situation, it is important to
-     * // immediately reduce the magnitude of the arguments by computing either
-     * // A+B or A-B for each pair of points. Note that even if A and B differ
-     * // only in their low bits, A-B can be computed very accurately. On the
-     * // other hand we can't accurately represent an arbitrary linear combination
-     * // of two vectors as would be required for Gaussian elimination. The code
-     * // below chooses the vertex opposite the longest edge as the "origin" for
-     * // the calculation, and computes the different vectors to the other two
-     * // vertices. This minimizes the sum of the lengths of these vectors.
-     * //
-     * // This implementation is very stable numerically, but it still does not
-     * // return consistent results in all cases. For example, if three points are
-     * // spaced far apart from each other along a great circle, the sign of the
-     * // result will basically be random (although it will still satisfy the
-     * // conditions documented in the header file). The only way to return
-     * // consistent results in all cases is to compute the result using
-     * // arbitrary-precision arithmetic. I considered using the Gnu MP library,
-     * // but this would be very expensive (up to 2000 bits of precision may be
-     * // needed to store the intermediate results) and seems like overkill for
-     * // this problem. The MP library is apparently also quite particular about
-     * // compilers and compilation options and would be a pain to maintain.
-     *
-     * // We want to handle the case of nearby points and nearly antipodal points
-     * // accurately, so determine whether A+B or A-B is smaller in each case.
-     * double sab = (a.dotProd(b) > 0) ? -1 : 1;
-     * double sbc = (b.dotProd(c) > 0) ? -1 : 1;
-     * double sca = (c.dotProd(a) > 0) ? -1 : 1;
-     * S2Point vab = S2Point.add(a, S2Point.mul(b, sab));
-     * S2Point vbc = S2Point.add(b, S2Point.mul(c, sbc));
-     * S2Point vca = S2Point.add(c, S2Point.mul(a, sca));
-     * double dab = vab.norm2();
-     * double dbc = vbc.norm2();
-     * double dca = vca.norm2();
-     *
-     * // Sort the difference vectors to find the longest edge, and use the
-     * // opposite vertex as the origin. If two difference vectors are the same
-     * // length, we break ties deterministically to ensure that the symmetry
-     * // properties guaranteed in the header file will be true.
-     * double sign;
-     * if (dca < dbc || (dca == dbc && a.lessThan(b))) {
-     * if (dab < dbc || (dab == dbc && a.lessThan(c))) {
-     * // The "sab" factor converts A +/- B into B +/- A.
-     * sign = S2Point.crossProd(vab, vca).dotProd(a) * sab; // BC is longest
-     * // edge
-     * } else {
-     * sign = S2Point.crossProd(vca, vbc).dotProd(c) * sca; // AB is longest
-     * // edge
-     * }
-     * } else {
-     * if (dab < dca || (dab == dca && b.lessThan(c))) {
-     * sign = S2Point.crossProd(vbc, vab).dotProd(b) * sbc; // CA is longest
-     * // edge
-     * } else {
-     * sign = S2Point.crossProd(vca, vbc).dotProd(c) * sca; // AB is longest
-     * // edge
-     * }
-     * }
-     * if (sign > 0) {
-     * return 1;
-     * }
-     * if (sign < 0) {
-     * return -1;
-     * }
-     *
-     * // The points A, B, and C are numerically indistinguishable from coplanar.
-     * // This may be due to roundoff error, or the points may in fact be exactly
-     * // coplanar. We handle this situation by perturbing all of the points by a
-     * // vector (eps, eps**2, eps**3) where "eps" is an infinitesmally small
-     * // positive number (e.g. 1 divided by a googolplex). The perturbation is
-     * // done symbolically, i.e. we compute what would happen if the points were
-     * // perturbed by this amount. It turns out that this is equivalent to
-     * // checking whether the points are ordered CCW around the origin first in
-     * // the Y-Z plane, then in the Z-X plane, and then in the X-Y plane.
-     *
-     * int ccw =
-     * planarOrderedCCW(new R2Vector(a.y, a.z), new R2Vector(b.y, b.z), new R2Vector(c.y, c.z));
-     * if (ccw == 0) {
-     * ccw =
-     * planarOrderedCCW(new R2Vector(a.z, a.x), new R2Vector(b.z, b.x), new R2Vector(c.z, c.x));
-     * if (ccw == 0) {
-     * ccw = planarOrderedCCW(
-     * new R2Vector(a.x, a.y), new R2Vector(b.x, b.y), new R2Vector(c.x, c.y));
-     * // assert (ccw != 0);
-     * }
-     * }
-     * return ccw;
-     * }
-     *
-     *
-     * public static int planarCCW(R2Vector a, R2Vector b) {
-     * // Return +1 if the edge AB is CCW around the origin, etc.
-     * double sab = (a.dotProd(b) > 0) ? -1 : 1;
-     * R2Vector vab = R2Vector.add(a, R2Vector.mul(b, sab));
-     * double da = a.norm2();
-     * double db = b.norm2();
-     * double sign;
-     * if (da < db || (da == db && a.lessThan(b))) {
-     * sign = a.crossProd(vab) * sab;
-     * } else {
-     * sign = vab.crossProd(b);
-     * }
-     * if (sign > 0) {
-     * return 1;
-     * }
-     * if (sign < 0) {
-     * return -1;
-     * }
-     * return 0;
-     * }
-     *
-     * public static int planarOrderedCCW(R2Vector a, R2Vector b, R2Vector c) {
-     * int sum = 0;
-     * sum += planarCCW(a, b);
-     * sum += planarCCW(b, c);
-     * sum += planarCCW(c, a);
-     * if (sum > 0) {
-     * return 1;
-     * }
-     * if (sum < 0) {
-     * return -1;
-     * }
-     * return 0;
-     * }
-     *
-     * /**
+     */
+     private static function expensiveCCW(S2Point $a, S2Point $b, S2Point $c): int {
+         // Return zero if and only if two points are the same. This ensures (1).
+         if ($a->equals($b) || $b->equals($c) || $c->equals($a)) {
+            return 0;
+         }
+
+         // Now compute the determinant in a stable way. Since all three points are
+         // unit length and we know that the determinant is very close to zero, this
+         // means that points are very nearly colinear. Furthermore, the most common
+         // situation is where two points are nearly identical or nearly antipodal.
+         // To get the best accuracy in this situation, it is important to
+         // immediately reduce the magnitude of the arguments by computing either
+         // A+B or A-B for each pair of points. Note that even if A and B differ
+         // only in their low bits, A-B can be computed very accurately. On the
+         // other hand we can't accurately represent an arbitrary linear combination
+         // of two vectors as would be required for Gaussian elimination. The code
+         // below chooses the vertex opposite the longest edge as the "origin" for
+         // the calculation, and computes the different vectors to the other two
+         // vertices. This minimizes the sum of the lengths of these vectors.
+         //
+         // This implementation is very stable numerically, but it still does not
+         // return consistent results in all cases. For example, if three points are
+         // spaced far apart from each other along a great circle, the sign of the
+         // result will basically be random (although it will still satisfy the
+         // conditions documented in the header file). The only way to return
+         // consistent results in all cases is to compute the result using
+         // arbitrary-precision arithmetic. I considered using the Gnu MP library,
+         // but this would be very expensive (up to 2000 bits of precision may be
+         // needed to store the intermediate results) and seems like overkill for
+         // this problem. The MP library is apparently also quite particular about
+         // compilers and compilation options and would be a pain to maintain.
+
+         // We want to handle the case of nearby points and nearly antipodal points
+         // accurately, so determine whether A+B or A-B is smaller in each case.
+         /** @var float */ $sab = ($a->dotProd($b) > 0) ? -1 : 1;
+         /** @var float */ $sbc = ($b->dotProd($c) > 0) ? -1 : 1;
+         /** @var float */ $sca = ($c->dotProd($a) > 0) ? -1 : 1;
+         /** @var S2Point */ $vab = S2Point::add($a, S2Point::mul($b, $sab));
+         /** @var S2Point */ $vbc = S2Point::add($b, S2Point::mul($c, $sbc));
+         /** @var S2Point */ $vca = S2Point::add($c, S2Point::mul($a, $sca));
+         /** @var float */ $dab = $vab->norm2();
+         /** @var float */ $dbc = $vbc->norm2();
+         /** @var float */ $dca = $vca->norm2();
+
+         // Sort the difference vectors to find the longest edge, and use the
+         // opposite vertex as the origin. If two difference vectors are the same
+         // length, we break ties deterministically to ensure that the symmetry
+         // properties guaranteed in the header file will be true.
+         $sign = 0.0;
+
+         if ($dca < $dbc || ($dca == $dbc && $a->lessThan($b))) {
+             if ($dab < $dbc || ($dab == $dbc && $a->lessThan($c))) {
+                 // The "sab" factor converts A +/- B into B +/- A.
+                 $sign = S2Point::crossProd($vab, $vca)->dotProd($a) * $sab; // BC is longest
+                 // edge
+             } else {
+                $sign = S2Point::crossProd($vca, $vbc)->dotProd($c) * $sca; // AB is longest
+             // edge
+             }
+         } else {
+             if ($dab < $dca || ($dab == $dca && $b->lessThan($c))) {
+                 $sign = S2Point::crossProd($vbc, $vab)->dotProd($b) * $sbc; // CA is longest
+                 // edge
+             } else {
+                 $sign = S2Point::crossProd($vca, $vbc)->dotProd($c) * $sca; // AB is longest
+                 // edge
+             }
+         }
+         if ($sign > 0) {
+            return 1;
+         }
+         if ($sign < 0) {
+            return -1;
+
+        }
+
+         // The points A, B, and C are numerically indistinguishable from coplanar.
+         // This may be due to roundoff error, or the points may in fact be exactly
+         // coplanar. We handle this situation by perturbing all of the points by a
+         // vector (eps, eps**2, eps**3) where "eps" is an infinitesmally small
+         // positive number (e.g. 1 divided by a googolplex). The perturbation is
+         // done symbolically, i.e. we compute what would happen if the points were
+         // perturbed by this amount. It turns out that this is equivalent to
+         // checking whether the points are ordered CCW around the origin first in
+         // the Y-Z plane, then in the Z-X plane, and then in the X-Y plane.
+
+         $ccw = self::planarOrderedCCW(
+             new R2Vector($a->y, $a->z),
+             new R2Vector($b->y, $b->z),
+             new R2Vector($c->y, $c->z)
+         );
+
+         if ($ccw === 0) {
+            $ccw = self::planarOrderedCCW(
+                new R2Vector($a->z, $a->x),
+                new R2Vector($b->z, $b->x),
+                new R2Vector($c->z, $c->x)
+            );
+            if ($ccw === 0) {
+                $ccw = self::planarOrderedCCW(
+                    new R2Vector($a->x, $a->y),
+                    new R2Vector($b->x, $b->y),
+                    new R2Vector($c->x, $c->y)
+                );
+                assert ($ccw !== 0);
+            }
+         }
+         return $ccw;
+     }
+
+
+     public static function planarCCW(R2Vector $a, R2Vector $b): int {
+         // Return +1 if the edge AB is CCW around the origin, etc.
+         $sab = ($a->dotProd($b) > 0) ? -1 : 1;
+         $vab = R2Vector::add($a, R2Vector::mul($b, $sab));
+         $da = $a->norm2();
+         $db = $b->norm2();
+
+         if ($da < $db || ($da === $db && $a->lessThan($b))) {
+            $sign = $a->crossProd($vab) * $sab;
+         } else {
+            $sign = $vab->crossProd($b);
+         }
+         if ($sign > 0) {
+            return 1;
+         }
+         if ($sign < 0) {
+            return -1;
+         }
+         return 0;
+     }
+
+     public static function planarOrderedCCW(R2Vector $a, R2Vector $b, R2Vector $c): int {
+         $sum = 0;
+         $sum += self::planarCCW($a, $b);
+         $sum += self::planarCCW($b, $c);
+         $sum += self::planarCCW($c, $a);
+         if ($sum > 0) {
+             return 1;
+         }
+         if ($sum < 0) {
+             return -1;
+         }
+         return 0;
+     }
+
+     /**
      * Return true if the edges OA, OB, and OC are encountered in that order while
      * sweeping CCW around the point O. You can think of this as testing whether
      * A <= B <= C with respect to a continuous CCW ordering around O.
@@ -625,26 +637,26 @@ class S2 {
      *   <li>If a == b or b == c, then orderedCCW(a,b,c,o) is true</li>
      *   <li>Otherwise if a == c, then orderedCCW(a,b,c,o) is false</li>
      * </ol>
-     *#/
-     * public static boolean orderedCCW(S2Point a, S2Point b, S2Point c, S2Point o) {
-     * // The last inequality below is ">" rather than ">=" so that we return true
-     * // if A == B or B == C, and otherwise false if A == C. Recall that
-     * // RobustCCW(x,y,z) == -RobustCCW(z,y,x) for all x,y,z.
-     *
-     * int sum = 0;
-     * if (robustCCW(b, o, a) >= 0) {
-     * ++sum;
-     * }
-     * if (robustCCW(c, o, b) >= 0) {
-     * ++sum;
-     * }
-     * if (robustCCW(a, o, c) > 0) {
-     * ++sum;
-     * }
-     * return sum >= 2;
-     * }
-     *
-     * /**
+     */
+     public static function orderedCCW(S2Point $a, S2Point $b, S2Point $c, S2Point $o): bool {
+         // The last inequality below is ">" rather than ">=" so that we return true
+         // if A == B or B == C, and otherwise false if A == C. Recall that
+         // RobustCCW(x,y,z) == -RobustCCW(z,y,x) for all x,y,z.
+
+         $sum = 0;
+         if (self::robustCCW($b, $o, $a) >= 0) {
+            ++$sum;
+         }
+         if (self::robustCCW($c, $o, $b) >= 0) {
+            ++$sum;
+         }
+         if (self::robustCCW($a, $o, $c) > 0) {
+            ++$sum;
+         }
+         return $sum >= 2;
+     }
+
+     /**
      * Return the angle at the vertex B in the triangle ABC. The return value is
      * always in the range [0, Pi]. The points do not need to be normalized.
      * Ensures that Angle(a,b,c) == Angle(c,b,a) for all a,b,c.
@@ -722,12 +734,12 @@ class Metric {
         return $this->deriv;
     }
 
-    /** Return the value of a metric for cells at the given level. *#/
-     * public function getValue($level) {
-     * return StrictMath.scalb(deriv, dim * (1 - level));
-     * }
-     *
-     * /**
+    /** Return the value of a metric for cells at the given level. */
+     public function getValue($level) {
+        return JavaMathHelper::java_Math_ScalB($this->deriv, -$this->dim * $level);
+     }
+
+    /**
      * Return the level at which the metric has approximately the given value.
      * For example, S2::kAvgEdge.GetClosestLevel(0.1) returns the level at which
      * the average cell edge length is approximately 0.1. The return value is
@@ -782,4 +794,214 @@ class Metric {
 // assert (level == S2CellId.MAX_LEVEL || getValue(level + 1) < value);
         return $level;
     }
+}
+
+class JavaMathHelper {
+
+     /**
+      * Maximum exponent a finite {@code double} variable may have.
+      * It is equal to the value returned by
+      * {@code Math.getExponent(Double.MAX_VALUE)}.
+      *
+      * @since 1.6
+      * @see https://github.com/openjdk/jdk13u/blob/master/src/java.base/share/classes/java/lang/Double.java
+      */
+     private const DOUBLE_MAX_EXPONENT = 1023;
+
+
+    /**
+     * Minimum exponent a normalized {@code double} variable may
+     * have.  It is equal to the value returned by
+     * {@code Math.getExponent(Double.MIN_NORMAL)}.
+     *
+     * @since 1.6
+     * @see https://github.com/openjdk/jdk13u/blob/master/src/java.base/share/classes/java/lang/Double.java
+     */
+     private const DOUBLE_MIN_EXPONENT = -1022;
+
+
+     /**
+      * The number of logical bits in the significand of a
+      * {@code double} number, including the implicit bit.
+      * @see https://github.com/openjdk/jdk13u/blob/master/src/java.base/share/classes/jdk/internal/math/DoubleConsts.java
+      */
+     private const DOUBLE_CONSTS_SIGNIFICAND_WIDTH = 53;
+
+    /**
+     * Bias used in representing a {@code double} exponent.
+     * @see https://github.com/openjdk/jdk13u/blob/master/src/java.base/share/classes/jdk/internal/math/DoubleConsts.java
+     */
+    private const DOUBLE_CONSTS_EXP_BIAS        = 1023;
+
+    /**
+     * Bit mask to isolate the exponent field of a
+     * {@code double}.
+     * @see https://github.com/openjdk/jdk13u/blob/master/src/java.base/share/classes/jdk/internal/math/DoubleConsts.java
+     */
+    private const DOUBLE_CONSTS_EXP_BIT_MASK    = 0x7FF0000000000000;
+
+    // Constants used in scalb
+
+    private static function twoToTheDoubleScaleUp(): float {
+        return self::powerOfTwoD(512);
+    }
+
+    private static function twoToTheDoubleScaleDown(): float {
+        return self::powerOfTwoD(-512);
+    }
+
+    private static function longBitsToDouble(int $value): float {
+        $bin    = pack('q', $value);
+        $double = unpack('d', $bin);
+        return array_shift($double);
+    }
+
+    /**
+     * Returns a floating-point power of two in the normal range.
+     * @see https://github.com/openjdk/jdk13u/blob/master/src/java.base/share/classes/java/lang/Math.java
+     */
+
+    private static function powerOfTwoD(int $n): float {
+        return
+            self::longBitsToDouble(((($n + self::DOUBLE_CONSTS_EXP_BIAS) <<
+                (self::DOUBLE_CONSTS_SIGNIFICAND_WIDTH-1))
+               & self::DOUBLE_CONSTS_EXP_BIT_MASK))
+        ;
+    }
+
+    // https://stackoverflow.com/a/43359819/14651
+    public static function uRShift($a, $b)
+    {
+        if ($b >= 32 || $b < -32) {
+            $m = (int)($b/32);
+            $b = $b-($m*32);
+        }
+
+        if ($b < 0) {
+            $b = 32 + $b;
+        }
+
+        if ($b == 0) {
+            return (($a>>1)&0x7fffffff)*2+(($a>>$b)&1);
+        }
+
+        if ($a < 0)
+        {
+            $a = ($a >> 1);
+            $a &= 0x7fffffff;
+            $a |= 0x40000000;
+            $a = ($a >> ($b - 1));
+        } else {
+            $a = ($a >> $b);
+        }
+        return $a;
+    }
+
+    /**
+     * Returns {@code d} &times;
+     * 2<sup>{@code scaleFactor}</sup> rounded as if performed
+     * by a single correctly rounded floating-point multiply to a
+     * member of the double value set.  See the Java
+     * Language Specification for a discussion of floating-point
+     * value sets.  If the exponent of the result is between {@link
+     * Double#MIN_EXPONENT} and {@link Double#MAX_EXPONENT}, the
+     * answer is calculated exactly.  If the exponent of the result
+     * would be larger than {@code Double.MAX_EXPONENT}, an
+     * infinity is returned.  Note that if the result is subnormal,
+     * precision may be lost; that is, when {@code scalb(x, n)}
+     * is subnormal, {@code scalb(scalb(x, n), -n)} may not equal
+     * <i>x</i>.  When the result is non-NaN, the result has the same
+     * sign as {@code d}.
+     *
+     * <p>Special cases:
+     * <ul>
+     * <li> If the first argument is NaN, NaN is returned.
+     * <li> If the first argument is infinite, then an infinity of the
+     * same sign is returned.
+     * <li> If the first argument is zero, then a zero of the same
+     * sign is returned.
+     * </ul>
+     *
+     * @param d number to be scaled by a power of two.
+     * @param scaleFactor power of 2 used to scale {@code d}
+     * @return {@code d} &times; 2<sup>{@code scaleFactor}</sup>
+     * @since 1.6
+     * @see https://github.com/openjdk/jdk13u/blob/master/src/java.base/share/classes/java/lang/Math.java
+     */
+     public static function java_Math_ScalB($d, int $scaleFactor): float {
+         /*
+          * This method does not need to be declared strictfp to
+          * compute the same correct result on all platforms.  When
+          * scaling up, it does not matter what order the
+          * multiply-store operations are done; the result will be
+          * finite or overflow regardless of the operation ordering.
+          * However, to get the correct result when scaling down, a
+          * particular ordering must be used.
+          *
+          * When scaling down, the multiply-store operations are
+          * sequenced so that it is not possible for two consecutive
+          * multiply-stores to return subnormal results.  If one
+          * multiply-store result is subnormal, the next multiply will
+          * round it away to zero.  This is done by first multiplying
+          * by 2 ^ (scaleFactor % n) and then multiplying several
+          * times by 2^n as needed where n is the exponent of number
+          * that is a covenient power of two.  In this way, at most one
+          * real rounding error occurs.  If the double value set is
+          * being used exclusively, the rounding will occur on a
+          * multiply.  If the double-extended-exponent value set is
+          * being used, the products will (perhaps) be exact but the
+          * stores to d are guaranteed to round to the double value
+          * set.
+          *
+          * It is _not_ a valid implementation to first multiply d by
+          * 2^MIN_EXPONENT and then by 2 ^ (scaleFactor %
+          * MIN_EXPONENT) since even in a strictfp program double
+          * rounding on underflow could occur; e.g. if the scaleFactor
+          * argument was (MIN_EXPONENT - n) and the exponent of d was a
+          * little less than -(MIN_EXPONENT - n), meaning the final
+          * result would be subnormal.
+          *
+          * Since exact reproducibility of this method can be achieved
+          * without any undue performance burden, there is no
+          * compelling reason to allow double rounding on underflow in
+          * scalb.
+          */
+
+        // magnitude of a power of two so large that scaling a finite
+        // nonzero value by it would be guaranteed to over or
+        // underflow; due to rounding, scaling down takes an
+        // additional power of two which is reflected here
+
+
+        $MAX_SCALE = self::DOUBLE_MAX_EXPONENT + -self::DOUBLE_MIN_EXPONENT +
+                     self::DOUBLE_CONSTS_SIGNIFICAND_WIDTH + 1;
+
+        // Make sure scaling factor is in a reasonable range
+
+        if($scaleFactor < 0) {
+            $scaleFactor = max($scaleFactor, -$MAX_SCALE);
+            $scale_increment = -512;
+            $exp_delta = self::twoToTheDoubleScaleDown();
+        } else {
+            $scaleFactor = min($scaleFactor, $MAX_SCALE);
+            $scale_increment = 512;
+            $exp_delta = self::twoToTheDoubleScaleUp();
+        }
+
+
+        // Calculate (scaleFactor % +/-512), 512 = 2^9, using
+        // technique from "Hacker's Delight" section 10-2.
+        $t = self::uRShift($scaleFactor >> 9-1, 32 - 9);
+        $exp_adjust = (($scaleFactor + $t) & (512 -1)) - $t;
+
+        $d *= self::powerOfTwoD($exp_adjust);
+        $scaleFactor -= $exp_adjust;
+
+        while($scaleFactor !== 0) {
+            $d *= $exp_delta;
+            $scaleFactor -= $scale_increment;
+        }
+
+        return $d;
+     }
 }

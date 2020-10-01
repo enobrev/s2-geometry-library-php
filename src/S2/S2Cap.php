@@ -59,10 +59,10 @@ class S2Cap implements S2Region
      * Create a cap given its axis and its area in steradians. 'axis' should be a
      * unit-length vector, and 'area' should be between 0 and 4 * M_PI.
      */
-//  public static S2Cap fromAxisArea(S2Point axis, double area) {
-    // assert (S2.isUnitLength(axis));
-//    return new S2Cap(axis, area / (2 * S2.M_PI));
-//  }
+    public static function fromAxisArea(S2Point $axis, float $area): S2Cap {
+        assert (S2::isUnitLength($axis));
+        return new S2Cap($axis, $area / (2 * S2::M_PI));
+    }
 
     /** Return an empty cap, i.e. a cap that contains no points. */
     public static function sempty()
@@ -120,12 +120,12 @@ class S2Cap implements S2Region
         return $this->height < 0;
     }
 
-    /** Return true if the cap is full, i.e. it contains all points. *#/
-     * public boolean isFull() {
-     * return height >= 2;
-     * }
-     *
-     * /**
+    /** Return true if the cap is full, i.e. it contains all points. */
+     public function isFull(): bool {
+        return $this->height >= 2;
+     }
+
+     /**
      * Return the complement of the interior of the cap. A cap and its complement
      * have the same boundary but do not share any interior points. The complement
      * operator is not a bijection, since the complement of a singleton cap
@@ -192,30 +192,29 @@ class S2Cap implements S2Region
         }
     }
 
-    /*
   // Increase the cap height if necessary to include "other". If the current
   // cap is empty it is set to the given other cap.
-  public S2Cap addCap(S2Cap other) {
+  public function addCap(S2Cap $other): S2Cap {
     if (isEmpty()) {
-      return new S2Cap(other.axis, other.height);
+      return new S2Cap($other->axis, $other->height);
     } else {
       // See comments for FromAxisAngle() and AddPoint(). This could be
       // optimized by doing the calculation in terms of cap heights rather
       // than cap opening angles.
-      double angle = axis.angle(other.axis) + other.angle().radians();
-      if (angle >= S2.M_PI) {
-        return new S2Cap(axis, 2); //Full cap
+      $angle = $this->axis->angle($other->axis) + $other->angle()->radians();
+      if ($angle >= S2::M_PI) {
+        return new S2Cap($this->axis, 2); //Full cap
       } else {
-        double d = Math.sin(0.5 * angle);
-        double newHeight = Math.max(height, ROUND_UP * 2 * d * d);
-        return new S2Cap(axis, newHeight);
+        $d = sin(0.5 * $angle);
+        $newHeight = max($this->height, ROUND_UP * 2 * $d * $d);
+        return new S2Cap($this->axis, $newHeight);
       }
     }
   }
 
   // //////////////////////////////////////////////////////////////////////
   // S2Region interface (see {@code S2Region} for details):
-   * */
+
     public function getCapBound()
     {
         return $this;
@@ -278,7 +277,24 @@ class S2Cap implements S2Region
         );
     }
 
-    public function contains($cell)
+    /**
+     * @param S2Cell|S2Point|S2Cap $target
+     */
+    public function contains($target) {
+        if ($target instanceof S2Cell) {
+            $this->contains_cell($target);
+        }
+
+        if ($target instanceof S2Point) {
+            $this->contains_point($target);
+        }
+
+        if ($target instanceof S2Cap) {
+            $this->contains_cap($target);
+        }
+    }
+
+    private function contains_cell($cell)
     {
         // If the cap does not contain all cell vertices, return false.
         // We check the vertices before taking the Complement() because we can't
@@ -297,6 +313,21 @@ class S2Cap implements S2Region
         return !$this->complement()->intersects($cell, $vertices);
     }
 
+    public function contains_point(S2Point $p): bool {
+        // The point 'p' should be a unit-length vector.
+        // assert (S2.isUnitLength(p));
+        return S2Point::sub($this->axis, $p)->norm2() <= 2 * $this->height;
+      }
+
+    public function contains_cap(S2Cap $other): bool {
+        if ($this->isFull() || $other->isEmpty()) {
+            return true;
+        }
+
+        return $this->angle()->radians() >= $this->axis->angle($other->axis)
+                                    + $other->angle()->radians();
+    }
+
     public function mayIntersect(S2Cell $cell)
     {
         // If the cap contains any cell vertex, return true.
@@ -313,69 +344,69 @@ class S2Cap implements S2Region
     /**
      * Return true if the cap intersects 'cell', given that the cap vertices have
      * alrady been checked.
-     *#/
-     * public boolean intersects(S2Cell cell, S2Point[] vertices) {
-     * // Return true if this cap intersects any point of 'cell' excluding its
-     * // vertices (which are assumed to already have been checked).
-     *
-     * // If the cap is a hemisphere or larger, the cell and the complement of the
-     * // cap are both convex. Therefore since no vertex of the cell is contained,
-     * // no other interior point of the cell is contained either.
-     * if (height >= 1) {
-     * return false;
-     * }
-     *
-     * // We need to check for empty caps due to the axis check just below.
-     * if (isEmpty()) {
-     * return false;
-     * }
-     *
-     * // Optimization: return true if the cell contains the cap axis. (This
-     * // allows half of the edge checks below to be skipped.)
-     * if (cell.contains(axis)) {
-     * return true;
-     * }
-     *
-     * // At this point we know that the cell does not contain the cap axis,
-     * // and the cap does not contain any cell vertex. The only way that they
-     * // can intersect is if the cap intersects the interior of some edge.
-     *
-     * double sin2Angle = height * (2 - height); // sin^2(capAngle)
-     * for (int k = 0; k < 4; ++k) {
-     * S2Point edge = cell.getEdgeRaw(k);
-     * double dot = axis.dotProd(edge);
-     * if (dot > 0) {
-     * // The axis is in the interior half-space defined by the edge. We don't
-     * // need to consider these edges, since if the cap intersects this edge
-     * // then it also intersects the edge on the opposite side of the cell
-     * // (because we know the axis is not contained with the cell).
-     * continue;
-     * }
-     * // The Norm2() factor is necessary because "edge" is not normalized.
-     * if (dot * dot > sin2Angle * edge.norm2()) {
-     * return false; // Entire cap is on the exterior side of this edge.
-     * }
-     * // Otherwise, the great circle containing this edge intersects
-     * // the interior of the cap. We just need to check whether the point
-     * // of closest approach occurs between the two edge endpoints.
-     * S2Point dir = S2Point.crossProd(edge, axis);
-     * if (dir.dotProd(vertices[k]) < 0
-     * && dir.dotProd(vertices[(k + 1) & 3]) > 0) {
-     * return true;
-     * }
-     * }
-     * return false;
-     * }
-     *
-     * public boolean contains(S2Point p) {
-     * // The point 'p' should be a unit-length vector.
-     * // assert (S2.isUnitLength(p));
-     * return S2Point.sub(axis, p).norm2() <= 2 * height;
-     *
-     * }
-     *
-     *
-     * /** Return true if two caps are identical. *#/
+     */
+     public function intersects(S2Cell $cell, array $vertices): bool {
+         // Return true if this cap intersects any point of 'cell' excluding its
+         // vertices (which are assumed to already have been checked).
+
+         // If the cap is a hemisphere or larger, the cell and the complement of the
+         // cap are both convex. Therefore since no vertex of the cell is contained,
+         // no other interior point of the cell is contained either.
+         if ($this->height >= 1) {
+            return false;
+         }
+
+         // We need to check for empty caps due to the axis check just below.
+         if ($this->isEmpty()) {
+            return false;
+         }
+
+         // Optimization: return true if the cell contains the cap axis. (This
+         // allows half of the edge checks below to be skipped.)
+         if ($cell->contains($this->axis)) {
+            return true;
+         }
+
+         // At this point we know that the cell does not contain the cap axis,
+         // and the cap does not contain any cell vertex. The only way that they
+         // can intersect is if the cap intersects the interior of some edge.
+
+         $sin2Angle = $this->height * (2 - $this->height); // sin^2(capAngle)
+         for ($k = 0; $k < 4; ++$k) {
+             $edge = $cell->getEdgeRaw($k);
+             $dot = $this->axis->dotProd($edge);
+             if ($dot > 0) {
+                 // The axis is in the interior half-space defined by the edge. We don't
+                 // need to consider these edges, since if the cap intersects this edge
+                 // then it also intersects the edge on the opposite side of the cell
+                 // (because we know the axis is not contained with the cell).
+                 continue;
+             }
+             // The Norm2() factor is necessary because "edge" is not normalized.
+             if ($dot * $dot > $sin2Angle * $edge->norm2()) {
+                return false; // Entire cap is on the exterior side of this edge.
+             }
+             // Otherwise, the great circle containing this edge intersects
+             // the interior of the cap. We just need to check whether the point
+             // of closest approach occurs between the two edge endpoints.
+             $dir = S2Point::crossProd($edge, $this->axis);
+             if ($dir->dotProd($vertices[$k]) < 0
+             && $dir->dotProd($vertices[($k + 1) & 3]) > 0) {
+                return true;
+             }
+         }
+         return false;
+     }
+
+     public function containsPoint(S2Point $p): bool {
+         // The point 'p' should be a unit-length vector.
+         // assert (S2.isUnitLength(p));
+         return S2Point::sub($this->axis, $p)->norm2() <= 2 * $this->height;
+
+     }
+
+
+     /** Return true if two caps are identical. *#/
      * @Override
      * public boolean equals(Object that) {
      *

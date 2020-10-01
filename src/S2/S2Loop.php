@@ -24,6 +24,10 @@ namespace S2;
  *
  */
 
+use S2\utils\WedgeIntersects;
+use S2\utils\WedgeRelation;
+use SplObjectStorage;
+
 class S2Loop implements S2Region
 {
 //private static final Logger log = Logger.getLogger(S2Loop.class.getCanonicalName());
@@ -31,152 +35,192 @@ class S2Loop implements S2Region
     /**
      * Max angle that intersections can be off by and yet still be considered
      * colinear.
-     *#/
-     * public static final double MAX_INTERSECTION_ERROR = 1e-15;
      *
-     * /**
+     * @var float
+     */
+     public const MAX_INTERSECTION_ERROR = 1e-15;
+
+     /**
      * Edge index used for performance-critical operations. For example,
      * contains() can determine whether a point is inside a loop in nearly
      * constant time, whereas without an edge index it is forced to compare the
      * query point against every edge in the loop.
-     *#/
-     * private S2EdgeIndex index;
-     *
-     * /** Maps each S2Point to its order in the loop, from 1 to numVertices. *#/
-     * private Map
-     * <S2Point
-     * , Integer> vertexToIndex;
-     *
-     * private final S2Point[] vertices;
-     * private final int numVertices;
-     *
-     * /**
+      *
+      * @var S2EdgeIndex
+     */
+     private  $index;
+
+     /** Maps each S2Point to its order in the loop, from 1 to numVertices.
+      *
+      * @var SplObjectStorage[S2Point]int
+      */
+     private $vertexToIndex;
+
+     /** @var S2Point[] */
+     private $vertices;
+
+    /** @var int */
+     private  $numVertices;
+
+     /**
      * The index (into "vertices") of the vertex that comes first in the total
      * ordering of all vertices in this loop.
-     *#/
-     * private int firstLogicalVertex;
-     *
-     * private S2LatLngRect bound;
-     * private boolean originInside;
-     * private int depth;
-     *
-     * /**
+      *
+      * @var int
+     */
+     private  $firstLogicalVertex;
+
+    /** @var S2LatLngRect */
+     private $bound;
+
+    /** @var bool */
+     private $originInside;
+
+    /** @var int */
+     private $depth;
+
+     /**
      * Initialize a loop connecting the given vertices. The last vertex is
      * implicitly connected to the first. All points should be unit length. Loops
      * must have at least 3 vertices.
      *
-     * @param vertices
-     *#/
-     * public S2Loop(final List
-     * <S2Point> vertices) {
-     * this.numVertices = vertices.size();
-     * this.vertices = new S2Point[numVertices];
-     * this.bound = S2LatLngRect.full();
-     * this.depth = 0;
-     *
-     * // if (debugMode) {
-     * // assert (isValid(vertices, DEFAULT_MAX_ADJACENT));
-     * // }
-     *
-     * vertices.toArray(this.vertices);
-     *
-     * // initOrigin() must be called before InitBound() because the latter
-     * // function expects Contains() to work properly.
-     * initOrigin();
-     * initBound();
-     * initFirstLogicalVertex();
-     * }
-     *
-     * /**
+     * @param S2Loop|S2Cell|S2Point[] $a
+     * @param S2LatLngRect|null $b
+     */
+     public function __construct($a, $b = null) {
+         if ($a instanceof self) {
+             $this->S2LoopFromLoop($a);
+         } else if ($a instanceof S2Cell) {
+             if ($b instanceof S2LatLngRect) {
+                 $this->S2LoopFromCellBound($a, $b);
+             } else {
+                $this->S2LoopFromCell($a);
+             }
+         } else if (is_array($a)) {
+             $this->S2LoopFromVertices($a);
+         }
+     }
+
+    /**
+     * @param S2Point[] $vertices
+     */
+     private function S2LoopFromVertices(array $vertices) {
+         $this->numVertices = count($vertices);
+         $this->vertices = [];
+         $this->bound = S2LatLngRect::full();
+         $this->depth = 0;
+
+         // if (debugMode) {
+         // assert (isValid(vertices, DEFAULT_MAX_ADJACENT));
+         // }
+
+         // initOrigin() must be called before InitBound() because the latter
+         // function expects Contains() to work properly.
+         $this->initOrigin();
+         $this->initBound();
+         $this->initFirstLogicalVertex();
+     }
+
+     /**
      * Initialize a loop corresponding to the given cell.
-     *#/
-     * public S2Loop(S2Cell cell) {
-     * this(cell, cell.getRectBound());
-     * }
-     *
-     * /**
+     */
+     private function S2LoopFromCell(S2Cell $cell) {
+        $this->S2LoopFromCellBound($cell, $cell->getRectBound());
+     }
+
+     /**
      * Like the constructor above, but assumes that the cell's bounding rectangle
      * has been precomputed.
      *
-     * @param cell
-     * @param bound
-     *#/
-     * public S2Loop(S2Cell cell, S2LatLngRect bound) {
-     * this.bound = bound;
-     * numVertices = 4;
-     * vertices = new S2Point[numVertices];
-     * vertexToIndex = null;
-     * index = null;
-     * depth = 0;
-     * for (int i = 0; i < 4; ++i) {
-     * vertices[i] = cell.getVertex(i);
-     * }
-     * initOrigin();
-     * initFirstLogicalVertex();
-     * }
-     *
-     * /**
+     * @param S2Cell       $cell
+     * @param S2LatLngRect $bound
+     */
+     private function S2LoopFromCellBound(S2Cell $cell, S2LatLngRect $bound) {
+         $this->bound = $bound;
+         $this->numVertices = 4;
+         $this->vertices = [];
+         $this->vertexToIndex = null;
+         $this->index = null;
+         $this->depth = 0;
+
+         for ($i = 0; $i < 4; ++$i) {
+            $this->vertices[$i] = $cell->getVertex($i);
+         }
+
+         $this->initOrigin();
+         $this->initFirstLogicalVertex();
+     }
+
+     /**
      * Copy constructor.
-     *#/
-     * public S2Loop(S2Loop src) {
-     * this.numVertices = src.numVertices();
-     * this.vertices = src.vertices.clone();
-     * this.vertexToIndex = src.vertexToIndex;
-     * this.index = src.index;
-     * this.firstLogicalVertex = src.firstLogicalVertex;
-     * this.bound = src.getRectBound();
-     * this.originInside = src.originInside;
-     * this.depth = src.depth();
-     * }
-     *
-     * public int depth() {
-     * return depth;
-     * }
-     *
-     * /**
+     */
+     private function S2LoopFromLoop(S2Loop $src) {
+         $this->numVertices     = $src->numVertices();
+         $this->vertices        = $src->vertices;
+         $this->vertexToIndex   = $src->vertexToIndex;
+         $this->index           = $src->index;
+         $this->firstLogicalVertex = $src->firstLogicalVertex;
+         $this->bound           = $src->getRectBound();
+         $this->originInside    = $src->originInside;
+     }
+
+     public function depth(): int {
+         return $this->depth;
+     }
+
+     /**
      * The depth of a loop is defined as its nesting level within its containing
      * polygon. "Outer shell" loops have depth 0, holes within those loops have
      * depth 1, shells within those holes have depth 2, etc. This field is only
      * used by the S2Polygon implementation.
      *
-     * @param depth
-     *#/
-     * public void setDepth(int depth) {
-     * this.depth = depth;
-     * }
-     *
-     * /**
+     * @param int $depth
+     */
+     public function setDepth(int $depth):void {
+        $this->depth = $depth;
+     }
+
+     /**
      * Return true if this loop represents a hole in its containing polygon.
-     *#/
-     * public boolean isHole() {
-     * return (depth & 1) != 0;
-     * }
-     *
-     * /**
+     */
+     public function isHole(): bool {
+        return ($this->depth & 1) !== 0;
+     }
+
+     /**
      * The sign of a loop is -1 if the loop represents a hole in its containing
      * polygon, and +1 otherwise.
-     *#/
-     * public int sign() {
-     * return isHole() ? -1 : 1;
-     * }
-     *
-     * public int numVertices() {
-     * return numVertices;
-     * }
-     *
-     * /**
+     */
+     public function sign(): int {
+        return $this->isHole() ? -1 : 1;
+     }
+
+     public function numVertices(): int {
+        return $this->numVertices;
+     }
+
+     /**
      * For convenience, we make two entire copies of the vertex list available:
      * vertex(n..2*n-1) is mapped to vertex(0..n-1), where n == numVertices().
-     *#/
-     * public S2Point vertex(int i) {
-     * try {
-     * return vertices[i >= vertices.length ? i - vertices.length : i];
-     * } catch (ArrayIndexOutOfBoundsException e) {
-     * throw new IllegalStateException("Invalid vertex index");
-     * }
-     * }
-     *
-     * /**
+     */
+     public function vertex(int $i): S2Point {
+         $index = $i >= count($this->vertices) ? $i - count($this->vertices) : $i;
+         if (!isset($this->vertices[$index])) {
+             throw new \RuntimeException("Invalid vertex index");
+         }
+
+         return $this->vertices[$index];
+
+         /*
+         try {
+            // etc..
+         } catch (ArrayIndexOutOfBoundsException $e) {
+            throw new IllegalStateException("Invalid vertex index");
+         }
+         */
+     }
+
+     /**
      * Comparator (needed by Comparable interface)
      *#/
      * @Override
@@ -215,113 +259,115 @@ class S2Loop implements S2Region
      *
      * /**
      * Return true if the loop area is at most 2*Pi.
-     *#/
-     * public boolean isNormalized() {
-     * // We allow a bit of error so that exact hemispheres are
-     * // considered normalized.
-     * return getArea() <= 2 * S2.M_PI + 1e-14;
-     * }
-     *
-     * /**
+     */
+     public function isNormalized(): bool {
+        // We allow a bit of error so that exact hemispheres are
+        // considered normalized.
+        return $this->getArea() <= 2 * S2::M_PI + 1e-14;
+     }
+
+     /**
      * Invert the loop if necessary so that the area enclosed by the loop is at
      * most 2*Pi.
-     *#/
-     * public void normalize() {
-     * if (!isNormalized()) {
-     * invert();
-     * }
-     * }
-     *
-     * /**
+     */
+     public function normalize(): void {
+        if (!$this->isNormalized()) {
+            $this->invert();
+        }
+     }
+
+     /**
      * Reverse the order of the loop vertices, effectively complementing the
      * region represented by the loop.
-     *#/
-     * public void invert() {
-     * int last = numVertices() - 1;
-     * for (int i = (last - 1) / 2; i >= 0; --i) {
-     * S2Point t = vertices[i];
-     * vertices[i] = vertices[last - i];
-     * vertices[last - i] = t;
-     * }
-     * vertexToIndex = null;
-     * index = null;
-     * originInside ^= true;
-     * if (bound.lat().lo() > -S2.M_PI_2 && bound.lat().hi() < S2.M_PI_2) {
-     * // The complement of this loop contains both poles.
-     * bound = S2LatLngRect.full();
-     * } else {
-     * initBound();
-     * }
-     * initFirstLogicalVertex();
-     * }
-     *
-     * /**
+     */
+     public function invert(): void {
+         $last = $this->numVertices() - 1;
+         for ($i = ($last - 1) / 2; $i >= 0; --$i) {
+             /** @var S2Point */ $t = $this->vertices[$i];
+             $this->vertices[$i] = $this->vertices[$last - $i];
+             $this->vertices[$last - $i] = $t;
+         }
+         $this->vertexToIndex = null;
+         $this->index = null;
+         $this->originInside ^= true;
+         if ($this->bound->lat()->lo() > -S2::M_PI_2 && $this->bound->lat()->hi() < S2::M_PI_2) {
+         // The complement of this loop contains both poles.
+            $this->bound = S2LatLngRect::full();
+         } else {
+            $this->initBound();
+         }
+         $this->initFirstLogicalVertex();
+     }
+
+     /**
      * Helper method to get area and optionally centroid.
-     *#/
-     * private S2AreaCentroid getAreaCentroid(boolean doCentroid) {
-     * S2Point centroid = null;
-     * // Don't crash even if loop is not well-defined.
-     * if (numVertices() < 3) {
-     * return new S2AreaCentroid(0D, centroid);
-     * }
-     *
-     * // The triangle area calculation becomes numerically unstable as the length
-     * // of any edge approaches 180 degrees. However, a loop may contain vertices
-     * // that are 180 degrees apart and still be valid, e.g. a loop that defines
-     * // the northern hemisphere using four points. We handle this case by using
-     * // triangles centered around an origin that is slightly displaced from the
-     * // first vertex. The amount of displacement is enough to get plenty of
-     * // accuracy for antipodal points, but small enough so that we still get
-     * // accurate areas for very tiny triangles.
-     * //
-     * // Of course, if the loop contains a point that is exactly antipodal from
-     * // our slightly displaced vertex, the area will still be unstable, but we
-     * // expect this case to be very unlikely (i.e. a polygon with two vertices on
-     * // opposite sides of the Earth with one of them displaced by about 2mm in
-     * // exactly the right direction). Note that the approximate point resolution
-     * // using the E7 or S2CellId representation is only about 1cm.
-     *
-     * S2Point origin = vertex(0);
-     * int axis = (origin.largestAbsComponent() + 1) % 3;
-     * double slightlyDisplaced = origin.get(axis) + S2.M_E * 1e-10;
-     * origin =
-     * new S2Point((axis == 0) ? slightlyDisplaced : origin.x,
-     * (axis == 1) ? slightlyDisplaced : origin.y, (axis == 2) ? slightlyDisplaced : origin.z);
-     * origin = S2Point.normalize(origin);
-     *
-     * double areaSum = 0;
-     * S2Point centroidSum = new S2Point(0, 0, 0);
-     * for (int i = 1; i <= numVertices(); ++i) {
-     * areaSum += S2.signedArea(origin, vertex(i - 1), vertex(i));
-     * if (doCentroid) {
-     * // The true centroid is already premultiplied by the triangle area.
-     * S2Point trueCentroid = S2.trueCentroid(origin, vertex(i - 1), vertex(i));
-     * centroidSum = S2Point.add(centroidSum, trueCentroid);
-     * }
-     * }
-     * // The calculated area at this point should be between -4*Pi and 4*Pi,
-     * // although it may be slightly larger or smaller than this due to
-     * // numerical errors.
-     * // assert (Math.abs(areaSum) <= 4 * S2.M_PI + 1e-12);
-     *
-     * if (areaSum < 0) {
-     * // If the area is negative, we have computed the area to the right of the
-     * // loop. The area to the left is 4*Pi - (-area). Amazingly, the centroid
-     * // does not need to be changed, since it is the negative of the integral
-     * // of position over the region to the right of the loop. This is the same
-     * // as the integral of position over the region to the left of the loop,
-     * // since the integral of position over the entire sphere is (0, 0, 0).
-     * areaSum += 4 * S2.M_PI;
-     * }
-     * // The loop's sign() does not affect the return result and should be taken
-     * // into account by the caller.
-     * if (doCentroid) {
-     * centroid = centroidSum;
-     * }
-     * return new S2AreaCentroid(areaSum, centroid);
-     * }
-     *
-     * /**
+     */
+     private function getAreaCentroid(bool $doCentroid): S2AreaCentroid {
+        /** @var S2Point*/ $centroid = null;
+        // Don't crash even if loop is not well-defined.
+        if ($this->numVertices() < 3) {
+            return new S2AreaCentroid(0, $centroid);
+        }
+
+          // The triangle area calculation becomes numerically unstable as the length
+         // of any edge approaches 180 degrees. However, a loop may contain vertices
+         // that are 180 degrees apart and still be valid, e.g. a loop that defines
+         // the northern hemisphere using four points. We handle this case by using
+         // triangles centered around an origin that is slightly displaced from the
+         // first vertex. The amount of displacement is enough to get plenty of
+         // accuracy for antipodal points, but small enough so that we still get
+         // accurate areas for very tiny triangles.
+         //
+         // Of course, if the loop contains a point that is exactly antipodal from
+         // our slightly displaced vertex, the area will still be unstable, but we
+         // expect this case to be very unlikely (i.e. a polygon with two vertices on
+         // opposite sides of the Earth with one of them displaced by about 2mm in
+         // exactly the right direction). Note that the approximate point resolution
+         // using the E7 or S2CellId representation is only about 1cm.
+
+         /** @var S2Point */ $origin = $this->vertex(0);
+         /** @var int */ $axis = ($origin->largestAbsComponent() + 1) % 3;
+         /** @var double */ $slightlyDisplaced = $origin->get($axis) + S2::M_E * 1e-10;
+         $origin = new S2Point(
+                        ($axis === 0) ? $slightlyDisplaced : $origin->x,
+                        ($axis == 1) ? $slightlyDisplaced : $origin->y,
+                        ($axis == 2) ? $slightlyDisplaced : $origin->z
+         );
+         $origin = S2Point::normalize($origin);
+
+         /** @var double */ $areaSum = 0;
+         /** @var S2Point */ $centroidSum = new S2Point(0, 0, 0);
+         for ($i = 1; $i <= $this->numVertices(); ++$i) {
+             $areaSum += S2::signedArea($origin, $this->vertex($i - 1), $this->vertex($i));
+             if ($doCentroid) {
+                 // The true centroid is already premultiplied by the triangle area.
+                 /** @var S2Point */ $trueCentroid = S2::trueCentroid($origin, $this->vertex($i - 1), $this->vertex($i));
+                 $centroidSum = S2Point::add($centroidSum, $trueCentroid);
+             }
+         }
+         // The calculated area at this point should be between -4*Pi and 4*Pi,
+         // although it may be slightly larger or smaller than this due to
+         // numerical errors.
+         // assert (Math.abs($areaSum) <= 4 * S2.M_PI + 1e-12);
+
+         if ($areaSum < 0) {
+             // If the area is negative, we have computed the area to the right of the
+             // loop. The area to the left is 4*Pi - (-area). Amazingly, the centroid
+             // does not need to be changed, since it is the negative of the integral
+             // of position over the region to the right of the loop. This is the same
+             // as the integral of position over the region to the left of the loop,
+             // since the integral of position over the entire sphere is (0, 0, 0).
+             $areaSum += 4 * S2::M_PI;
+         }
+         // The loop's sign() does not affect the return result and should be taken
+         // into account by the caller.
+         if ($doCentroid) {
+             $centroid = $centroidSum;
+         }
+         return new S2AreaCentroid($areaSum, $centroid);
+     }
+
+         /**
      * Return the area of the loop interior, i.e. the region on the left side of
      * the loop. The return value is between 0 and 4*Pi and the true centroid of
      * the loop multiplied by the area of the loop (see S2.java for details on
@@ -334,20 +380,20 @@ class S2Loop implements S2Region
      * /**
      * Return the area of the polygon interior, i.e. the region on the left side
      * of an odd number of loops. The return value is between 0 and 4*Pi.
-     *#/
-     * public double getArea() {
-     * return getAreaCentroid(false).getArea();
-     * }
-     *
-     * /**
+     */
+     public function getArea(): float {
+        return getAreaCentroid(false)->getArea();
+     }
+
+     /**
      * Return the true centroid of the polygon multiplied by the area of the
      * polygon (see {@link S2} for details on centroids). Note that the centroid
      * may not be contained by the polygon.
-     *#/
-     * public S2Point getCentroid() {
-     * return getAreaCentroid(true).getCentroid();
-     * }
-     *
+     */
+     public function getCentroid(): S2Point {
+        return $this->getAreaCentroid(true)->getCentroid();
+     }
+     /*
      * // The following are the possible relationships between two loops A and B:
      * //
      * // (1) A and B do not intersect.
@@ -414,52 +460,52 @@ class S2Loop implements S2Region
      * /**
      * Return true if the region contained by this loop intersects the region
      * contained by the given other loop.
-     *#/
-     * public boolean intersects(S2Loop b) {
-     * // a->Intersects(b) if and only if !a->Complement()->Contains(b).
-     * // This code is similar to Contains(), but is optimized for the case
-     * // where both loops enclose less than half of the sphere.
-     *
-     * if (!bound.intersects(b.getRectBound())) {
-     * return false;
-     * }
-     *
-     * // Normalize the arguments so that B has a smaller longitude span than A.
-     * // This makes intersection tests much more efficient in the case where
-     * // longitude pruning is used (see CheckEdgeCrossings).
-     * if (b.getRectBound().lng().getLength() > bound.lng().getLength()) {
-     * return b.intersects(this);
-     * }
-     *
-     * // Unless there are shared vertices, we need to check whether A contains a
-     * // vertex of B. Since shared vertices are rare, it is more efficient to do
-     * // this test up front as a quick acceptance test.
-     * if (contains(b.vertex(0)) && findVertex(b.vertex(0)) < 0) {
-     * return true;
-     * }
-     *
-     * // Now check whether there are any edge crossings, and also check the loop
-     * // relationship at any shared vertices.
-     * if (checkEdgeCrossings(b, new S2EdgeUtil.WedgeIntersects()) < 0) {
-     * return true;
-     * }
-     *
-     * // We know that A does not contain a vertex of B, and that there are no edge
-     * // crossings. Therefore the only way that A can intersect B is if B
-     * // entirely contains A. We can check this by testing whether B contains an
-     * // arbitrary non-shared vertex of A. Note that this check is cheap because
-     * // of the bounding box precondition and the fact that we normalized the
-     * // arguments so that A's longitude span is at least as long as B's.
-     * if (b.getRectBound().contains(bound)) {
-     * if (b.contains(vertex(0)) && b.findVertex(vertex(0)) < 0) {
-     * return true;
-     * }
-     * }
-     *
-     * return false;
-     * }
-     *
-     * /**
+     */
+     public function intersects(S2Loop $b): bool {
+         // a->Intersects(b) if and only if !a->Complement()->Contains(b).
+         // This code is similar to Contains(), but is optimized for the case
+         // where both loops enclose less than half of the sphere.
+         
+         if (!$this->bound->intersects($b->getRectBound())) {
+         return false;
+         }
+         
+         // Normalize the arguments so that B has a smaller longitude span than A.
+         // This makes intersection tests much more efficient in the case where
+         // longitude pruning is used (see CheckEdgeCrossings).
+         if ($b->getRectBound()->lng()->getLength() > $this->bound->lng()->getLength()) {
+            return $b->intersects($this);
+         }
+         
+         // Unless there are shared vertices, we need to check whether A contains a
+         // vertex of B. Since shared vertices are rare, it is more efficient to do
+         // $this test up front as a quick acceptance test.
+         if ($this->contains($b->vertex(0)) && $this->findVertex($b->vertex(0)) < 0) {
+            return true;
+         }
+         
+         // Now check whether there are any edge crossings, and also check the loop
+         // relationship at any shared vertices.
+         if ($this->checkEdgeCrossings($b, new WedgeIntersects()) < 0) {
+            return true;
+         }
+         
+         // We know that A does not contain a vertex of B, and that there are no edge
+         // crossings. Therefore the only way that A can intersect B is if B
+         // entirely contains A. We can check $this by testing whether B contains an
+         // arbitrary non-shared vertex of A. Note that $this check is cheap because
+         // of the bounding box precondition and the fact that we normalized the
+         // arguments so that A's longitude span is at least as long as B's.
+         if ($b->getRectBound().contains($this->bound)) {
+             if ($b->contains($this->vertex(0)) && $b->findVertex($this->vertex(0)) < 0) {
+                return true;
+             }
+         }
+         
+         return false;
+     }
+     
+     /**
      * Given two loops of a polygon, return true if A contains B. This version of
      * contains() is much cheaper since it does not need to check whether the
      * boundaries of the two loops cross.
@@ -584,24 +630,24 @@ class S2Loop implements S2Region
      * If this method returns false, the region does not intersect the given cell.
      * Otherwise, either region intersects the cell, or the intersection
      * relationship could not be determined.
-     *#/
-     * @Override
-     * public boolean mayIntersect(S2Cell cell) {
-     * // It is faster to construct a bounding rectangle for an S2Cell than for
-     * // a general polygon. A future optimization could also take advantage of
-     * // the fact than an S2Cell is convex.
-     *
-     * S2LatLngRect cellBound = cell.getRectBound();
-     * if (!bound.intersects(cellBound)) {
-     * return false;
-     * }
-     * return new S2Loop(cell, cellBound).intersects(this);
-     * }
-     *
-     * /**
+     */
+     public function mayIntersect(S2Cell $cell): bool {
+         // It is faster to construct a bounding rectangle for an S2Cell than for
+         // a general polygon. A future optimization could also take advantage of
+         // the fact than an S2Cell is convex.
+         
+         $cellBound = $cell->getRectBound();
+         if (!$this->bound->intersects($cellBound)) {
+            return false;
+         }
+         
+         return (new S2Loop($cell, $cellBound))->intersects($this);
+     }
+     
+     /**
      * The point 'p' does not need to be normalized.
      *#/
-     * public boolean contains(S2Point p) {
+     * public boolean contans(S2Point p) {
      * if (!bound.contains(p)) {
      * return false;
      * }
@@ -657,31 +703,28 @@ class S2Loop implements S2Region
      * force lookups are likely to be slower than really creating an index, and if
      * so, we do so. Finally an iterator is returned that can be used to perform
      * edge lookups.
-     *#/
-     * private final DataEdgeIterator getEdgeIterator(int expectedQueries) {
-     * if (index == null) {
-     * index = new S2EdgeIndex() {
-     * @Override
-     * protected int getNumEdges() {
-     * return numVertices;
-     * }
-     *
-     * @Override
-     * protected S2Point edgeFrom(int index) {
-     * return vertex(index);
-     * }
-     *
-     * @Override
-     * protected S2Point edgeTo(int index) {
-     * return vertex(index + 1);
-     * }
-     * };
-     * }
-     * index.predictAdditionalCalls(expectedQueries);
-     * return new S2EdgeIndex.DataEdgeIterator(index);
-     * }
-     *
-     * /** Return true if this loop is valid. *#/
+     */
+     private function getEdgeIterator(int $expectedQueries): DataEdgeIterator {
+         if ($this->index === null) {
+             $fromEdge = function(int $index) {
+                 return $this->vertex($index);
+             };
+
+             $toEdge = function(int $index) {
+                 return $this->vertex($index + 1);
+             };
+
+             $this->index = new S2EdgeIndex();
+             $this->index->setNumEdges($this->numVertices);
+             $this->index->setEdgeFrom($fromEdge);
+             $this->index->setEdgeTo($toEdge);
+
+         }
+         $this->index->predictAdditionalCalls($expectedQueries);
+         return new DataEdgeIterator($this->index);
+     }
+
+     /** Return true if this loop is valid. *#/
      * public boolean isValid() {
      * if (numVertices < 3) {
      * log.info("Degenerate loop");
@@ -850,25 +893,24 @@ class S2Loop implements S2Region
      * /**
      * Return the index of a vertex at point "p", or -1 if not found. The return
      * value is in the range 1..num_vertices_ if found.
-     *#/
-     * private int findVertex(S2Point p) {
-     * if (vertexToIndex == null) {
-     * vertexToIndex = new HashMap
-     * <S2Point
-     * , Integer>();
-     * for (int i = 1; i <= numVertices; i++) {
-     * vertexToIndex.put(vertex(i), i);
-     * }
-     * }
-     * Integer index = vertexToIndex.get(p);
-     * if (index == null) {
-     * return -1;
-     * } else {
-     * return index;
-     * }
-     * }
-     *
-     * /**
+     */
+     private function findVertex(S2Point $p): int {
+         if ($this->vertexToIndex == null) {
+             $this->vertexToIndex = new SplObjectStorage();
+             for ($i = 1; $i <= $this->numVertices; $i++) {
+                $this->vertexToIndex[$this->vertex($i)] = $i;
+             }
+         }
+
+         $index = $this->vertexToIndex[$p] ?? null;
+         if ($index === null) {
+             return -1;
+         } else {
+             return $index;
+         }
+     }
+
+     /**
      * This method encapsulates the common code for loop containment and
      * intersection tests. It is used in three slightly different variations to
      * implement contains(), intersects(), and containsOrCrosses().
@@ -879,39 +921,38 @@ class S2Loop implements S2Region
      * returns the minimum value of the given WedgeRelation for all such vertices
      * (returning immediately if any wedge returns -1). Returns +1 if there are no
      * intersections and no shared vertices.
-     *#/
-     * private int checkEdgeCrossings(S2Loop b, S2EdgeUtil.WedgeRelation relation) {
-     * DataEdgeIterator it = getEdgeIterator(b.numVertices);
-     * int result = 1;
-     * // since 'this' usually has many more vertices than 'b', use the index on
-     * // 'this' and loop over 'b'
-     * for (int j = 0; j < b.numVertices(); ++j) {
-     * S2EdgeUtil.EdgeCrosser crosser =
-     * new S2EdgeUtil.EdgeCrosser(b.vertex(j), b.vertex(j + 1), vertex(0));
-     * int previousIndex = -2;
-     * for (it.getCandidates(b.vertex(j), b.vertex(j + 1)); it.hasNext(); it.next()) {
-     * int i = it.index();
-     * if (previousIndex != i - 1) {
-     * crosser.restartAt(vertex(i));
-     * }
-     * previousIndex = i;
-     * int crossing = crosser.robustCrossing(vertex(i + 1));
-     * if (crossing < 0) {
-     * continue;
-     * }
-     * if (crossing > 0) {
-     * return -1; // There is a proper edge crossing.
-     * }
-     * if (vertex(i + 1).equals(b.vertex(j + 1))) {
-     * result = Math.min(result, relation.test(
-     * vertex(i), vertex(i + 1), vertex(i + 2), b.vertex(j), b.vertex(j + 2)));
-     * if (result < 0) {
-     * return result;
-     * }
-     * }
-     * }
-     * }
-     * return result;
-     * }
      */
+     private function checkEdgeCrossings(S2Loop $b, WedgeRelation $relation): int {
+         $it = $this->getEdgeIterator($b->numVertices);
+         $result = 1;
+         // since 'this' usually has many more vertices than '$b', use the index on
+         // 'this' and loop over '$b'
+         for ($j = 0; $j < $b->numVertices(); ++$j) {
+             $crosser = new EdgeCrosser($b->vertex($j), $b->vertex($j + 1), $this->vertex(0));
+             $previousIndex = -2;
+             for ($it->getCandidates($b->vertex($j), $b->vertex($j + 1)); $it->hasNext(); $it->next()) {
+                 $i = $it->index();
+                 if ($previousIndex !== $i - 1) {
+                     $crosser->restartAt($this->vertex($i));
+                 }
+                 $previousIndex = $i;
+                 $crossing = $crosser->robustCrossing($this->vertex($i + 1));
+                 if ($crossing < 0) {
+                    continue;
+                 }
+                 if ($crossing > 0) {
+                    return -1; // There is $a proper edge crossing.
+                 }
+                 if ($this->vertex($i + 1)->equals($b->vertex($j + 1))) {
+                     $result = min($result, $relation->test(
+                        $this->vertex($i), $this->vertex($i + 1), $this->vertex($i + 2), $b->vertex($j), $b->vertex($j + 2)));
+                     if ($result < 0) {
+                        return $result;
+                     }
+                 }
+             }
+         }
+         return $result;
+     }
+
 }
