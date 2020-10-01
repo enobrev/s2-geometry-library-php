@@ -84,7 +84,7 @@ class S2Point
         } else {
             $temp = new S2Point(0, 0, 1);
         }
-        return S2Point::normalize($this->crossProd($this, $temp));
+        return S2Point::normalize(self::crossProd($this, $temp));
     }
 
     /** Return the index of the largest component fabs */
@@ -128,7 +128,7 @@ class S2Point
     /** Return the angle between two vectors in radians */
     public function angle(S2Point $va)
     {
-        return atan2($this->crossProd($this, $va)->norm(), $this->dotProd($va));
+        return atan2(self::crossProd($this, $va)->norm(), $this->dotProd($va));
     }
 
     /**

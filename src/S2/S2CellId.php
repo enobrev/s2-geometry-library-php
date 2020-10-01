@@ -260,7 +260,7 @@ class S2CellId {
      */
     public function isFace()
     {
-        return ($this->id & ($this->lowestOnBitForLevel(0) - 1)) == 0;
+        return ($this->id & (self::lowestOnBitForLevel(0) - 1)) == 0;
     }
 
     /**
@@ -356,7 +356,7 @@ class S2CellId {
             $oldLsb = $this->lowestOnBit();
             return new S2CellId($this->id - $oldLsb + (S2PhpUtils::unsignedRightShift($oldLsb, 2)));
         } else {
-            return new S2CellId($this->id - $this->lowestOnBit() + $this->lowestOnBitForLevel($level));
+            return new S2CellId($this->id - $this->lowestOnBit() + self::lowestOnBitForLevel($level));
         }
     }
 
@@ -367,7 +367,7 @@ class S2CellId {
             $oldLsb = $this->lowestOnBit();
             return new S2CellId($this->id + $oldLsb + (S2PhpUtils::unsignedRightShift($oldLsb, 2)));
         } else {
-            return new S2CellId($this->id + $this->lowestOnBit() + $this->lowestOnBitForLevel($level));
+            return new S2CellId($this->id + $this->lowestOnBit() + self::lowestOnBitForLevel($level));
         }
     }
 
@@ -588,12 +588,12 @@ class S2CellId {
         }
 
         $output[] = $this->parent($level);
-        $output[] = $this->fromFaceIJSame($face, $i + $ioffset, $j, $isame)->parent($level);
-        $output[] = $this->fromFaceIJSame($face, $i, $j + $joffset, $jsame)->parent($level);
+        $output[] = self::fromFaceIJSame($face, $i + $ioffset, $j, $isame)->parent($level);
+        $output[] = self::fromFaceIJSame($face, $i, $j + $joffset, $jsame)->parent($level);
         // If i- and j- edge neighbors are *both* on a different face, then this
         // vertex only has three neighbors (it is one of the 8 cube vertices).
         if ($isame || $jsame) {
-            $output[] = $this->fromFaceIJSame($face, $i + $ioffset, $j + $joffset, $isame && $jsame)->parent($level);
+            $output[] = self::fromFaceIJSame($face, $i + $ioffset, $j + $joffset, $isame && $jsame)->parent($level);
         }
     }
 
@@ -630,12 +630,12 @@ class S2CellId {
              } else {
                 $sameFace = true;
                  // North and South neighbors.
-                 $output[] = $this->fromFaceIJSame($face, $i + $k, $j - $nbrSize, $j - $size >= 0)->parent($nbrLevel);
-                 $output[] = $this->fromFaceIJSame($face, $i + $k, $j + $size, $j + $size < self::MAX_SIZE)->parent($nbrLevel);
+                 $output[] = self::fromFaceIJSame($face, $i + $k, $j - $nbrSize, $j - $size >= 0)->parent($nbrLevel);
+                 $output[] = self::fromFaceIJSame($face, $i + $k, $j + $size, $j + $size < self::MAX_SIZE)->parent($nbrLevel);
              }
              // East, West, and Diagonal neighbors.
-             $output[] = $this->fromFaceIJSame($face, $i - $nbrSize, $j + $k, $sameFace && $i - $size >= 0)->parent($nbrLevel);
-             $output[] = $this->fromFaceIJSame($face, $i + $size, $j + $k, $sameFace && $i + $size < self::MAX_SIZE)->parent($nbrLevel);
+             $output[] = self::fromFaceIJSame($face, $i - $nbrSize, $j + $k, $sameFace && $i - $size >= 0)->parent($nbrLevel);
+             $output[] = self::fromFaceIJSame($face, $i + $size, $j + $k, $sameFace && $i + $size < self::MAX_SIZE)->parent($nbrLevel);
              if ($k >= $size) {
                 break;
              }
@@ -982,8 +982,8 @@ class S2CellId {
     }
 
   public function compareTo(S2CellId $that): int {
-    return  self::unsignedLongLessThan($this->id, $that->id) ? -1 :
-            self::unsignedLongGreaterThan($this->id, $that->id) ? 1 : 0;
+    return (self::unsignedLongLessThan($this->id, $that->id) ? -1 : self::unsignedLongGreaterThan($this->id, $that->id))
+        ? 1 : 0;
   }
 }
 
