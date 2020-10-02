@@ -261,6 +261,7 @@ class S2CellUnion
         $pos = $this->binarySearch($this->cellIds, $id);
 
         if ($pos < 0) {
+            return false; // FIXME ?? Not returning false here gives me false positives.  This may be wrong somehow, but this is how it is in the original source and it fails for me
             $pos = -$pos - 1;
         }
 
