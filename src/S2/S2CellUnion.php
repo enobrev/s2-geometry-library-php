@@ -127,8 +127,7 @@ class S2CellUnion
     {
         assert ($minLevel >= 0 && $minLevel <= S2CellId::MAX_LEVEL);
         assert ($levelMod >= 1 && $levelMod <= 3);
-
-        $output = array();
+;
         /** @var $id S2CellId */
         foreach ($this->cellIds as $id) {
             $level = $id->level();
@@ -140,11 +139,11 @@ class S2CellUnion
                 $newLevel = min(S2CellId::MAX_LEVEL, $newLevel);
             }
             if ($newLevel === $level) {
-                $output[] = $id;
+                $output->add($id);
             } else {
                 $end = $id->childEnd($newLevel);
                 for ($nid = $id->childBegin($newLevel); !$nid->equals($end); $nid = $nid->next()) {
-                    $output[] = $id;
+                    $output->add($id);
                 }
             }
         }
