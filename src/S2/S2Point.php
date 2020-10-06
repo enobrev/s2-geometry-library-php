@@ -122,7 +122,15 @@ class S2Point
 
     public function get($axis)
     {
-        return ($axis == 0) ? $this->x : (($axis == 1) ? $this->y : $this->z);
+        if ($axis == 0) {
+            return $this->x;
+        }
+
+        if ($axis == 1) {
+            return $this->y;
+        }
+
+        return $this->z;
     }
 
     /** Return the angle between two vectors in radians */
@@ -172,7 +180,15 @@ class S2Point
 
     public function compareTo(S2Point $other)
     {
-        return ($this->lessThan($other) ? -1 : ($this->equals($other) ? 0 : 1));
+        if ($this->lessThan($other)) {
+            return -1;
+        }
+
+        if ($this->equals($other)) {
+            return 0;
+        }
+
+        return 1;
     }
 
     public function toString()

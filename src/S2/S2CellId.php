@@ -981,10 +981,17 @@ class S2CellId {
         }
     }
 
-  public function compareTo(S2CellId $that): int {
-    return (self::unsignedLongLessThan($this->id, $that->id) ? -1 : self::unsignedLongGreaterThan($this->id, $that->id))
-        ? 1 : 0;
-  }
+    public function compareTo(S2CellId $that): int {
+        if (self::unsignedLongLessThan($this->id, $that->id)) {
+            return -1;
+        }
+
+        if (self::unsignedLongGreaterThan($this->id, $that->id)) {
+            return 1;
+        }
+
+        return 0;
+    }
 }
 
 S2CellId::$LOOKUP_POS = array_pad(array(), 1 << (2 * S2CellId::LOOKUP_BITS + 2), 0);

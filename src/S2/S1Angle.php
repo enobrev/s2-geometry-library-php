@@ -141,6 +141,14 @@ class S1Angle
 
     public function compareTo(S1Angle $that)
     {
-        return ($this->radians < $that->radians ? -1 : $this->radians > $that->radians) ? 1 : 0;
+        if ($this->radians < $that->radians) {
+            return -1;
+        }
+
+        if ($this->radians > $that->radians) {
+            return 1;
+        }
+
+        return 0;
     }
 }

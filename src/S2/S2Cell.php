@@ -307,8 +307,18 @@ class S2Cell implements S2Region
             // coordinate based on the axis direction and the cell's (u,v) quadrant.
             $u = $this->uv[0][0] + $this->uv[0][1];
             $v = $this->uv[1][0] + $this->uv[1][1];
-            $i = S2Projections::getUAxis($this->face)->z == 0 ? ($u < 0 ? 1 : 0) : ($u > 0 ? 1 : 0);
-            $j = S2Projections::getVAxis($this->face)->z == 0 ? ($v < 0 ? 1 : 0) : ($v > 0 ? 1 : 0);
+
+            if (S2Projections::getUAxis($this->face)->z == 0) {
+                $i = $u < 0 ? 1 : 0;
+            } else {
+                $i = $u > 0 ? 1 : 0;
+            }
+
+            if (S2Projections::getVAxis($this->face)->z) {
+                $j = $v < 0 ? 1 : 0;
+            } else {
+                $j = $v > 0 ? 1 : 0;
+            }
 
             $lat = R1Interval::fromPointPair($this->getLatitude($i, $j), $this->getLatitude(1 - $i, 1 - $j));
             $lat = $lat->expanded(self::MAX_ERROR)->intersection(S2LatLngRect::fullLat());
