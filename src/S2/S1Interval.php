@@ -90,13 +90,14 @@ class S1Interval
      * && !(lo() == -S2.M_PI && hi() != S2.M_PI) && !(hi() == -S2.M_PI && lo() != S2.M_PI));
      * }
      *
-     * /** Return true if the interval contains all points on the unit circle. *#/
-     * public boolean isFull() {
-     * return hi() - lo() == 2 * S2.M_PI;
-     * }
-     *
-     *
-     * /** Return true if the interval is empty, i.e. it contains no points. */
+     */
+    /** Return true if the interval contains all points on the unit circle. */
+     public function isFull(): bool {
+        return $this->hi() - $this->lo() == 2 * S2::M_PI;
+     }
+
+
+     /** Return true if the interval is empty, i.e. it contains no points. */
     public function isEmpty()
     {
         return $this->lo() - $this->hi() == 2 * S2::M_PI;
@@ -152,9 +153,21 @@ class S1Interval
      * // empty and
      * // full.
      * }
-     *
-     * /** Return true if the interval (which is closed) contains the point 'p'. */
-     public function contains($p) {
+     */
+
+    /** Return true if the interval (which is closed) contains the point 'p'.
+     * @param S1Interval|float $p
+     */
+     public function contains ($p) {
+         if ($p instanceof S1Interval) {
+             return $this->containsInterval($p);
+         }
+
+         return $this->containsFloat($p);
+     }
+
+
+     protected function containsFloat(float $p) {
          // Works for empty, full, and singleton intervals.
          // assert (Math.abs(p) <= S2.M_PI);
          if ($p == -S2::M_PI) {
@@ -162,6 +175,7 @@ class S1Interval
          }
          return $this->fastContains($p);
      }
+
 
      /**
      * Return true if the interval (which is closed) contains the point 'p'. Skips
@@ -191,28 +205,28 @@ class S1Interval
      * }
      * }
      *
-     * /**
+     /**
      * Return true if the interval contains the given interval 'y'. Works for
      * empty, full, and singleton intervals.
-     *#/
-     * public boolean contains(final S1Interval y) {
-     * // It might be helpful to compare the structure of these tests to
-     * // the simpler Contains(double) method above.
-     *
-     * if (isInverted()) {
-     * if (y.isInverted()) {
-     * return y.lo() >= lo() && y.hi() <= hi();
-     * }
-     * return (y.lo() >= lo() || y.hi() <= hi()) && !isEmpty();
-     * } else {
-     * if (y.isInverted()) {
-     * return isFull() || y.isEmpty();
-     * }
-     * return y.lo() >= lo() && y.hi() <= hi();
-     * }
-     * }
-     *
-     * /**
+     */
+     protected function containsInterval(S1Interval $y): bool {
+         // It might be helpful to compare the structure of these tests to
+         // the simpler Contains(double) method above.
+
+         if ($this->isInverted()) {
+             if ($y->isInverted()) {
+                return $y->lo() >= $this->lo() && $y->hi() <= $this->hi();
+             }
+             return ($y->lo() >= $this->lo() || $y->hi() <= $this->hi()) && !$this->isEmpty();
+         } else {
+             if ($y->isInverted()) {
+                 return $this->isFull() || $y->isEmpty();
+             }
+             return $y->lo() >= $this->lo() && $y->hi() <= $this->hi();
+         }
+     }
+
+     /**
      * Returns true if the interior of this interval contains the entire interval
      * 'y'. Note that x.InteriorContains(x) is true only when x is the empty or
      * full interval, and x.InteriorContains(S1Interval(p,p)) is equivalent to
