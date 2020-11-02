@@ -321,7 +321,7 @@ class S2RegionCoverer
             // intersect the region, but may not be contained by it - we need to
             // subdivide them further.
             $candidate->isTerminal = true;
-            echo "addCandidato recurse: " . $candidate->cell->id() . "\n";
+//            echo "addCandidato recurse: " . $candidate->cell->id() . "\n";
             $this->addCandidate($candidate);
         } else {
             // We negate the priority so that smaller absolute priorities are returned
