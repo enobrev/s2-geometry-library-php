@@ -123,7 +123,7 @@ class S2CellUnion
      * converted back to the original list of cell ids that satisfies the desired
      * constraints.
      */
-    public function denormalize(int $minLevel, int $levelMod, S2CellUnion &$output)
+    public function denormalize(int $minLevel, int $levelMod, array &$output)
     {
         assert ($minLevel >= 0 && $minLevel <= S2CellId::MAX_LEVEL);
         assert ($levelMod >= 1 && $levelMod <= 3);
@@ -139,11 +139,11 @@ class S2CellUnion
                 $newLevel = min(S2CellId::MAX_LEVEL, $newLevel);
             }
             if ($newLevel === $level) {
-                $output->add($id);
+                $output[] = $id;
             } else {
                 $end = $id->childEnd($newLevel);
                 for ($nid = $id->childBegin($newLevel); !$nid->equals($end); $nid = $nid->next()) {
-                    $output->add($id);
+                    $output[] = $id;
                 }
             }
         }
